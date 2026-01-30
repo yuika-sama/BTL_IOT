@@ -657,4 +657,96 @@ const sampleNotificationData = [
     }
 ]
 
-export { sampleActionHistoryData, sampleDataSensorData, sampleNotificationData };
+const sampleTemperatureData = [
+    { id: 1, value: 26.5, timestamp: '2026-01-30 22:15:00' },
+    { id: 2, value: 24.0, timestamp: '2026-01-30 22:10:00' },
+    { id: 3, value: 28.5, timestamp: '2026-01-30 22:05:00' },
+    { id: 4, value: 22.0, timestamp: '2026-01-30 22:00:00' },
+    { id: 5, value: 25.5, timestamp: '2026-01-30 21:55:00' },
+    { id: 6, value: 26.8, timestamp: '2026-01-30 21:50:00' },
+    { id: 7, value: 23.5, timestamp: '2026-01-30 21:45:00' },
+    { id: 8, value: 24.2, timestamp: '2026-01-30 21:40:00' },
+    { id: 9, value: 29.0, timestamp: '2026-01-30 21:35:00' },
+    { id: 10, value: 25.2, timestamp: '2026-01-30 21:30:00' },
+    { id: 11, value: 27.0, timestamp: '2026-01-30 21:25:00' },
+    { id: 12, value: 22.5, timestamp: '2026-01-30 21:20:00' },
+    { id: 13, value: 28.0, timestamp: '2026-01-30 21:15:00' },
+    { id: 14, value: 24.5, timestamp: '2026-01-30 21:10:00' },
+    { id: 15, value: 28.2, timestamp: '2026-01-30 21:05:00' },
+    { id: 16, value: 25.0, timestamp: '2026-01-30 21:00:00' },
+    { id: 17, value: 27.2, timestamp: '2026-01-30 20:55:00' },
+    { id: 18, value: 24.0, timestamp: '2026-01-30 20:50:00' },
+    { id: 19, value: 24.8, timestamp: '2026-01-30 20:45:00' },
+    { id: 20, value: 23.0, timestamp: '2026-01-30 20:40:00' }
+];
+
+const sampleHumidityData = [
+    { id: 1, value: 60, timestamp: '2026-01-30 22:15:00' },
+    { id: 2, value: 55, timestamp: '2026-01-30 22:10:00' },
+    { id: 3, value: 70, timestamp: '2026-01-30 22:05:00' },
+    { id: 4, value: 85, timestamp: '2026-01-30 22:00:00' },
+    { id: 5, value: 58, timestamp: '2026-01-30 21:55:00' },
+    { id: 6, value: 59, timestamp: '2026-01-30 21:50:00' },
+    { id: 7, value: 75, timestamp: '2026-01-30 21:45:00' },
+    { id: 8, value: 56, timestamp: '2026-01-30 21:40:00' },
+    { id: 9, value: 68, timestamp: '2026-01-30 21:35:00' },
+    { id: 10, value: 57, timestamp: '2026-01-30 21:30:00' },
+    { id: 11, value: 62, timestamp: '2026-01-30 21:25:00' },
+    { id: 12, value: 82, timestamp: '2026-01-30 21:20:00' },
+    { id: 13, value: 50, timestamp: '2026-01-30 21:15:00' },
+    { id: 14, value: 54, timestamp: '2026-01-30 21:10:00' },
+    { id: 15, value: 72, timestamp: '2026-01-30 21:05:00' },
+    { id: 16, value: 60, timestamp: '2026-01-30 21:00:00' },
+    { id: 17, value: 61, timestamp: '2026-01-30 20:55:00' },
+    { id: 18, value: 78, timestamp: '2026-01-30 20:50:00' },
+    { id: 19, value: 53, timestamp: '2026-01-30 20:45:00' },
+    { id: 20, value: 80, timestamp: '2026-01-30 20:40:00' }
+];
+
+const sampleLightData = [
+    { id: 1, value: 450, timestamp: '2026-01-30 22:15:00' },
+    { id: 2, value: 120, timestamp: '2026-01-30 22:10:00' },
+    { id: 3, value: 600, timestamp: '2026-01-30 22:05:00' },
+    { id: 4, value: 0, timestamp: '2026-01-30 22:00:00' },
+    { id: 5, value: 300, timestamp: '2026-01-30 21:55:00' },
+    { id: 6, value: 460, timestamp: '2026-01-30 21:50:00' },
+    { id: 7, value: 20, timestamp: '2026-01-30 21:45:00' },
+    { id: 8, value: 200, timestamp: '2026-01-30 21:40:00' },
+    { id: 9, value: 580, timestamp: '2026-01-30 21:35:00' },
+    { id: 10, value: 310, timestamp: '2026-01-30 21:30:00' },
+    { id: 11, value: 480, timestamp: '2026-01-30 21:25:00' },
+    { id: 12, value: 5, timestamp: '2026-01-30 21:20:00' },
+    { id: 13, value: 100, timestamp: '2026-01-30 21:15:00' },
+    { id: 14, value: 250, timestamp: '2026-01-30 21:10:00' },
+    { id: 15, value: 620, timestamp: '2026-01-30 21:05:00' },
+    { id: 16, value: 290, timestamp: '2026-01-30 21:00:00' },
+    { id: 17, value: 500, timestamp: '2026-01-30 20:55:00' },
+    { id: 18, value: 40, timestamp: '2026-01-30 20:50:00' },
+    { id: 19, value: 300, timestamp: '2026-01-30 20:45:00' },
+    { id: 20, value: 10, timestamp: '2026-01-30 20:40:00' }
+];
+
+const sampleDustData = [
+    { id: 1, value: 35, timestamp: '2026-01-30 22:15:00' },
+    { id: 2, value: 12, timestamp: '2026-01-30 22:10:00' },
+    { id: 3, value: 45, timestamp: '2026-01-30 22:05:00' },
+    { id: 4, value: 80, timestamp: '2026-01-30 22:00:00' },
+    { id: 5, value: 10, timestamp: '2026-01-30 21:55:00' },
+    { id: 6, value: 38, timestamp: '2026-01-30 21:50:00' },
+    { id: 7, value: 65, timestamp: '2026-01-30 21:45:00' },
+    { id: 8, value: 15, timestamp: '2026-01-30 21:40:00' },
+    { id: 9, value: 50, timestamp: '2026-01-30 21:35:00' },
+    { id: 10, value: 25, timestamp: '2026-01-30 21:30:00' },
+    { id: 11, value: 40, timestamp: '2026-01-30 21:25:00' },
+    { id: 12, value: 75, timestamp: '2026-01-30 21:20:00' },
+    { id: 13, value: 90, timestamp: '2026-01-30 21:15:00' },
+    { id: 14, value: 18, timestamp: '2026-01-30 21:10:00' },
+    { id: 15, value: 42, timestamp: '2026-01-30 21:05:00' },
+    { id: 16, value: 30, timestamp: '2026-01-30 21:00:00' },
+    { id: 17, value: 36, timestamp: '2026-01-30 20:55:00' },
+    { id: 18, value: 60, timestamp: '2026-01-30 20:50:00' },
+    { id: 19, value: 20, timestamp: '2026-01-30 20:45:00' },
+    { id: 20, value: 70, timestamp: '2026-01-30 20:40:00' }
+];
+
+export { sampleActionHistoryData, sampleDataSensorData, sampleNotificationData, sampleTemperatureData, sampleHumidityData, sampleLightData, sampleDustData };

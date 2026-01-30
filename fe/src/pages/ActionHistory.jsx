@@ -1,7 +1,7 @@
 import React from 'react';
-import NavBar from '../components/NavBar.jsx';
 import InformationLayout from '../components/InformationLayout.jsx';
 import { sampleActionHistoryData } from '../utils/sampleData.js';
+import MainLayout from '../components/MainLayout.jsx';
 
 export default function ActionHistory(){
     const filterOptions = [
@@ -23,13 +23,12 @@ export default function ActionHistory(){
     ]
     
     return(
-        <div className="min-h-screen bg-gray-100">
-            <div className='flex justify-center'>
-                <NavBar />
-            </div>
-            <div className="max-w-6xl mx-auto p-6">
-                <InformationLayout filterOptions={filterOptions} columns={columns} data={sampleActionHistoryData} />
-            </div>
-        </div>
+        <MainLayout>
+            <InformationLayout
+                filterOptions={filterOptions}
+                columns={columns}
+                data={sampleActionHistoryData}
+            />
+        </MainLayout>
     )
 }

@@ -1,5 +1,5 @@
 import React, {useMemo} from 'react';
-import NavBar from '../components/NavBar.jsx';
+import MainLayout from '../components/MainLayout.jsx';
 import InformationLayout from '../components/InformationLayout.jsx';
 import { sampleNotificationData } from '../utils/sampleData.js';
 
@@ -26,13 +26,12 @@ export default function Notifications(){
     ]
     
     return(
-        <div className="min-h-screen bg-gray-100">
-            <div className='flex justify-center'>
-                <NavBar />
-            </div>
-            <div className="max-w-6xl mx-auto p-6">
-                <InformationLayout filterOptions={filterOptions} columns={columns} data={mergeColumns} />
-            </div>
-        </div>
+        <MainLayout>
+            <InformationLayout
+                filterOptions={filterOptions}
+                columns={columns}
+                data={mergeColumns}
+            />
+        </MainLayout>
     )
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import NavBar from '../components/NavBar.jsx';
+import MainLayout from '../components/MainLayout.jsx';
 import InformationLayout from '../components/InformationLayout.jsx';
 import { sampleDataSensorData } from '../utils/sampleData.js';
 
@@ -25,13 +25,12 @@ export default function DataSensor(){
     ]
     
     return(
-        <div className="min-h-screen bg-gray-100">
-            <div className='flex justify-center'>
-                <NavBar />
-            </div>
-            <div className="max-w-6xl mx-auto p-6">
-                <InformationLayout filterOptions={filterOptions} columns={columns} data={sampleDataSensorData} />
-            </div>
-        </div>
+        <MainLayout>
+            <InformationLayout
+                filterOptions={filterOptions}
+                columns={columns}
+                data={sampleDataSensorData}
+            />
+        </MainLayout>
     )
 }
