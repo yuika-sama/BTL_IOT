@@ -11,7 +11,6 @@ export default function Notifications(){
         {type: 'time', displayText: 'Thời gian'},
     ]
 
-
     const mergeColumns = useMemo(() => {
         return sampleNotificationData.map(item => ({
             ...item,
