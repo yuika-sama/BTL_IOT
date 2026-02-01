@@ -15,7 +15,8 @@ export default function Dashboard() {
         <MainLayout>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left Column - InforCard và ToggleCards */}
-                <div className="space-y-6">
+                <div className="space-y-6
+                ">
                     {/* InforCard */}
                     <InforCard 
                         temperature={25.2} 
@@ -50,7 +51,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* Right Column - Charts */}
-                <div className="lg:col-span-2 space-y-6">
+                <div className="lg:col-span-2 space-y-4">
                     {/* Chart 1 - Ánh sáng & Bụi mịn */}
                     <Chart 
                         data1={sampleLightData} 
@@ -74,7 +75,7 @@ export default function Dashboard() {
                         data1={sampleTemperatureData} 
                         data2={sampleHumidityData}
                         color1="#22c55e" 
-                        color2="#3b82f6" 
+                        color2="gray" 
                         label1="Nhiệt độ"
                         label2="Độ ẩm"
                         unit1="°C"

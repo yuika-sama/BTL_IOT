@@ -34,11 +34,11 @@ export default function InforCard({temperature, humidity, light, dust}) {
             {/* Header - Nhiệt độ */}
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                    <Thermometer size={24} className="text-orange-500" />
+                    <Sun size={36} className="text-blue-500" />
                     <span className="text-gray-600 font-medium">Nhiệt độ</span>
                 </div>
                 <div className="text-right relative">
-                    <Cloud size={48} className="text-gray-200 absolute top-0 right-0" />
+                    <Cloud size={48} className="text-gray-200 absolute top-0 right-0" fill="currentColor" />
                     <div className="text-sm text-gray-600 font-medium relative z-10 whitespace-pre-line">
                         {formatDate(currentTime)}
                     </div>

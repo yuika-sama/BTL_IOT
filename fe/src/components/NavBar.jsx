@@ -20,11 +20,11 @@ export default function NavBar() {
     }
 
     return (
-        <nav className="flex items-center gap-3 px-4 py-3 my-8 bg-white/90 backdrop-blur-sm rounded-full shadow-lg">
+        <nav className="flex items-center gap-3 px-8 py-2 my-8 bg-white/90 backdrop-blur-sm rounded-full shadow-lg">
             {defineButton.map((button, index) => (
                 <button
                     key={index}
-                    className={`p-3 rounded-xl transition-colors ${
+                    className={`p-3 px-4 rounded-xl transition-colors ${
                             location.pathname === button.route ? 'bg-blue-500 hover:bg-blue-600 text-white'
                             : 'hover:bg-gray-100 text-gray-600'
                         }`}

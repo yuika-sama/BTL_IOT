@@ -44,7 +44,7 @@ export default function Chart({
             <CustomLegend color1={color1} color2={color2} label1={label1} label2={label2} />
 
             {/* Chart */}
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={225}>
                 <LineChart 
                     data={mergedData}
                     margin={{ top: 20, right: 30, left: 20, bottom: 20 }}

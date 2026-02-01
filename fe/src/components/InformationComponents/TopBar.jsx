@@ -13,9 +13,7 @@ export default function TopBar({ filterOptions = [] }) {
     const handleSearchChange = (e) => {
         const value = e.target.value;
         // Chỉ cho phép chữ cái, số và khoảng trắng
-        if (/^[a-zA-Z0-9\s]*$/.test(value)) {
-            setSearchValue(value);
-        }
+        setSearchValue(value)
     };
 
     const timeUnits = [
@@ -36,24 +34,25 @@ export default function TopBar({ filterOptions = [] }) {
     const isTimeFilter = selectedFilter === 'time';
 
     return (
-        <div className="flex items-center gap-4 p-4 bg-white rounded-2xl shadow-sm">
-            {/* Search Bar */}
-            <div className="flex-1 relative">
-                <input
-                    type="text"
-                    value={searchValue}
-                    onChange={handleSearchChange}
-                    placeholder="Tìm kiếm theo: Tên, thời gian(giờ, phút, giây), giá trị,..."
-                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-            </div>
+        <div className="flex items-center gap-4 p-4">
+            {/* Search Bar and Filter */}
+            <div className="flex-1 flex items-center gap-2">
+                <div className="relative flex-1">
+                    <input
+                        type="text"
+                        value={searchValue}
+                        onChange={handleSearchChange}
+                        placeholder="Tìm kiếm theo: Tên, thời gian(giờ, phút, giây), giá trị,..."
+                        className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-3xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-lg"
+                    />
+                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                </div>
 
-            {/* Filter Dropdown */}
-            <div className="relative">
+                {/* Filter Dropdown */}
+                <div className="relative">
                 <button
                     onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                    className="flex items-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors min-w-[140px]"
+                    className="flex items-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-3xl hover:bg-gray-50 transition-colors min-w-[140px] shadow-lg"
                 >
                     <span className="text-gray-700">
                         {filterOptions.find(opt => opt.type === selectedFilter)?.displayText || 'Tất cả'}
@@ -62,7 +61,7 @@ export default function TopBar({ filterOptions = [] }) {
                 </button>
                 
                 {showFilterDropdown && (
-                    <div className="absolute top-full mt-2 right-0 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[140px] z-10">
+                    <div className="absolute top-full mt-2 right-0 bg-white border border-gray-200 rounded-3xl shadow-lg py-1 min-w-[140px] z-10  shadow-lg">
                         {filterOptions.map((option) => (
                             <button
                                 key={option.type}
@@ -70,7 +69,7 @@ export default function TopBar({ filterOptions = [] }) {
                                     setSelectedFilter(option.type);
                                     setShowFilterDropdown(false);
                                 }}
-                                className="w-full text-left px-4 py-2 hover:bg-gray-50 transition-colors"
+                                className="w-full text-left px-4 py-2 hover:bg-blue-50 hover:text-blue-700 transition-colors rounded-3xl"
                             >
                                 {option.displayText}
                             </button>
@@ -78,12 +77,13 @@ export default function TopBar({ filterOptions = [] }) {
                     </div>
                 )}
             </div>
+            </div>
 
             {/* Sort Dropdown */}
             <div className="relative">
                 <button
                     onClick={() => setShowSortDropdown(!showSortDropdown)}
-                    className="flex items-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors min-w-[160px]"
+                    className="flex items-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-3xl hover:bg-gray-50 transition-colors min-w-[160px] shadow-lg"
                 >
                     <span className="text-gray-700">
                         Sắp xếp: {sortOptions.find(opt => opt.value === sortOrder)?.label}
@@ -92,7 +92,7 @@ export default function TopBar({ filterOptions = [] }) {
                 </button>
                 
                 {showSortDropdown && (
-                    <div className="absolute top-full mt-2 right-0 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[160px] z-10">
+                    <div className="absolute top-full mt-2 right-0 bg-white border border-gray-200 rounded-3xl shadow-lg py-1 min-w-[160px] z-10 shadow-lg">
                         {sortOptions.map((option) => (
                             <button
                                 key={option.value}
@@ -100,7 +100,7 @@ export default function TopBar({ filterOptions = [] }) {
                                     setSortOrder(option.value);
                                     setShowSortDropdown(false);
                                 }}
-                                className="w-full text-left px-4 py-2 hover:bg-gray-50 transition-colors"
+                                className="w-full text-left px-4 py-2 hover:bg-blue-50 hover:text-blue-700 transition-colors rounded-3xl"
                             >
                                 {option.label}
                             </button>
@@ -114,7 +114,7 @@ export default function TopBar({ filterOptions = [] }) {
                 <div className="relative">
                     <button
                         onClick={() => setShowTimeDropdown(!showTimeDropdown)}
-                        className="flex items-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors min-w-[160px]"
+                        className="flex items-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-3xl hover:bg-gray-50 transition-colors min-w-[160px] shadow-lg"
                     >
                         <span className="text-gray-700">
                             Tìm kiếm theo: {timeUnits.find(unit => unit.value === timeUnit)?.label}
@@ -123,7 +123,7 @@ export default function TopBar({ filterOptions = [] }) {
                     </button>
                     
                     {showTimeDropdown && (
-                        <div className="absolute top-full mt-2 right-0 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[160px] z-10">
+                        <div className="absolute top-full mt-2 right-0 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[160px] z-10 shadow-lg">
                             {timeUnits.map((unit) => (
                                 <button
                                     key={unit.value}
@@ -131,7 +131,7 @@ export default function TopBar({ filterOptions = [] }) {
                                         setTimeUnit(unit.value);
                                         setShowTimeDropdown(false);
                                     }}
-                                    className="w-full text-left px-4 py-2 hover:bg-gray-50 transition-colors"
+                                    className="w-full text-left px-4 py-2 hover:bg-blue-50 hover:text-blue-700 transition-colors"
                                 >
                                     {unit.label}
                                 </button>

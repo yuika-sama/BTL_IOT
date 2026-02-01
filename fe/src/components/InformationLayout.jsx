@@ -5,9 +5,9 @@ import Pagination from './InformationComponents/Pagination.jsx';
 
 export default function InformationLayout({filterOptions = [], columns = [], data=[], children}) {
     return (
-        <div className="p-6 bg-gray-100 min-h-screen">
+        <div className="min-h-screen">
             <TopBar filterOptions={filterOptions} />
-            <div className="mt-6">
+            <div>
                 <Table columns={columns} data={data} />
                 <Pagination 
                     currentPage={1} 

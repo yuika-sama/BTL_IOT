@@ -61,7 +61,7 @@ export default function Table({ data = [], columns = [] }) {
     }
     
     return (
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+        <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
                 <table className="w-full">
                     <thead>
@@ -69,7 +69,7 @@ export default function Table({ data = [], columns = [] }) {
                             {columns.map((column) => (
                                 <th 
                                     key={column.key}
-                                    className={`px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider ${column.headerClassName || ''}`}
+                                    className={`px-6 py-4 bg-gray-100 text-left text-xs font-bold text-gray-500 uppercase tracking-wider ${column.headerClassName || ''}`}
                                 >
                                     {column.header}
                                     {column.sortable && ' ↓'}
