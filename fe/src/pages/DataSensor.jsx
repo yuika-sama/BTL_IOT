@@ -15,13 +15,13 @@ export default function DataSensor(){
     ]
 
     const columns = [
-        { key: 'id',header: 'ID', accessor: 'id' },
-        { key: 'deviceName', header: 'Tên thiết bị', accessor: 'deviceName' },
-        { key: 'temperature', header: 'Nhiệt độ', accessor: 'temperature' },
-        { key: 'humidity', header: 'Độ ẩm', accessor: 'humidity' },
-        { key: 'light', header: 'Ánh sáng', accessor: 'light' },
-        { key: 'dust', header: 'Bụi mịn', accessor: 'dust' },
-        { key: 'timestamp', header: 'Thời gian', accessor: 'timestamp' },
+        { key: 'id',header: 'ID', accessor: 'id', cellClassName:'font-medium'},
+        { key: 'deviceName', header: 'Tên thiết bị', accessor: 'deviceName', cellClassName:'' },
+        { key: 'temperature', header: 'Nhiệt độ', accessor: 'temperature', render: (value) => (<span className="font-medium text-red-500">{value}℃</span>)},
+        { key: 'humidity', header: 'Độ ẩm', accessor: 'humidity', render: (value) => (<span className="font-medium text-blue-400">{value}%</span>)},
+        { key: 'light', header: 'Ánh sáng', accessor: 'light', render: (value) => (<span className="font-medium text-yellow-500">{value} Lux</span>)},
+        { key: 'dust', header: 'Bụi mịn', accessor: 'dust', render: (value) => (<span className="font-medium text-gray-400">{value}µg/m³</span>)},
+        { key: 'timestamp', header: 'Thời gian', accessor: 'timestamp', cellClassName:'' },
     ]
     
     return(

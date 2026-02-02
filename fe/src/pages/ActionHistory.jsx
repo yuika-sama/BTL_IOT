@@ -14,12 +14,50 @@ export default function ActionHistory(){
     ]
 
     const columns = [
-        { key: 'id',header: 'ID', accessor: 'id' },
-        { key: 'deviceName', header: 'Tên thiết bị', accessor: 'deviceName' },
-        { key: 'action', header: 'Hành động', accessor: 'action' },
-        { key: 'status', header: 'Trạng thái', accessor: 'status' },
-        { key: 'executor', header: 'Thực thi bởi', accessor: 'executor' },
-        { key: 'timestamp', header: 'Thời gian', accessor: 'timestamp' },
+        { 
+            key: 'id',
+            header: 'ID', 
+            accessor: 'id',
+            cellClassName: 'font-semibold'
+        },
+        { 
+            key: 'deviceName', 
+            header: 'Tên thiết bị', 
+            accessor: 'deviceName',
+            render: (value) => (
+                <span className="">{value}</span>
+            )
+        },
+        { 
+            key: 'action', 
+            header: 'Hành động', 
+            accessor: 'action',
+            type: 'action'
+        },
+        { 
+            key: 'status', 
+            header: 'Trạng thái', 
+            accessor: 'status',
+            type: 'status',
+            headerClassName: 'text-center',
+            cellClassName: 'flex justify-center'
+        },
+        { 
+            key: 'executor', 
+            header: 'Thực thi bởi', 
+            accessor: 'executor',
+            type: 'executor'
+        },
+        { 
+            key: 'timestamp', 
+            header: 'Thời gian', 
+            accessor: 'timestamp',
+            // Render function để format thời gian
+            render: (value) => (
+                <span className="text-gray-600">{value}</span>
+            ),
+            sortable: true
+        },
     ]
     
     return(

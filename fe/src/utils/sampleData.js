@@ -11,7 +11,7 @@ const sampleActionHistoryData = [
         id: 2,
         deviceName: 'Máy hút ẩm',
         action: 'off',
-        status: 'success',
+        status: 'pending',
         executor: 'Auto',
         timestamp: '2026-01-30 21:46:00'
     },

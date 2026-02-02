@@ -7,7 +7,7 @@ export default function MainLayout({ children }) {
         <div className="min-h-screen bg-cover bg-center bg-no-repeat" 
             style={{ backgroundImage: `url(${bgImage})` }}
         >
-            <div className="min-h-screen flex flex-col items-center px-4">
+            <div className="min-h-screen flex flex-col items-center px-4 pb-8">
                 <div >
                     <NavBar />
                 </div>

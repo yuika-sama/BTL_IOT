@@ -1,11 +1,38 @@
 import React from 'react'
 import {User, Bot, CheckCircle, XCircle, AlertCircle} from 'lucide-react';
 
-export default function Table({ data = [], columns = [] }) {
+export default function Table({ data = [], columns = [], }) {
+    const getCritical = (level) => {
+        const levels = {
+            'medium': {
+                text: 'Critical', 
+                color: 'bg-red-50 text-red-600',
+                icon: <XCircle size={16} className="text-red-600" />
+            },
+            'high': {
+                text: 'Warning', 
+                color: 'bg-orange-50 text-orange-600',
+                icon: <AlertCircle size={16} className="text-orange-600" />
+            },
+            'normal': {
+                text: 'Info', 
+                color: 'bg-blue-50 text-blue-600',
+                icon: <AlertCircle size={16} className="text-blue-600" />
+            },
+        }
+        const badge = levels[level.toLowerCase()] || levels['info'];
+        return (
+            <span className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium ${badge.color}`}>
+                {badge.icon}
+                <span>{badge.text}</span>
+            </span>
+        )
+    }
+
     const getActionBadge = (action) => {
         const badges = {
             'on': {text: 'Bật', color: 'bg-green-100 text-green-800', icon: <CheckCircle size={16} />},
-            'off': {text: 'Tắt', color: 'bg-red-100 text-red-800', icon: <XCircle size={16} />},
+            'off': {text: 'Tắt', color: 'bg-gray-100 text-gray-500', icon: <XCircle size={16} />},
         }
         const badge = badges[action.toLowerCase()] || badges['off'];
         return (
@@ -28,7 +55,7 @@ export default function Table({ data = [], columns = [] }) {
     const getExecutorInfo = (executor) => {
         const isAuto = executor.toLowerCase() === 'auto';
         return (
-            <div className='flex items-center gap-2'>
+            <div className='flex items-center gap-2 font-medium'>
                 {isAuto ? (
                     <Bot size={16} className="text-gray-500" />
                 ) : (
@@ -55,6 +82,8 @@ export default function Table({ data = [], columns = [] }) {
                 return getStatusIcon(value);
             case 'executor':
                 return getExecutorInfo(value);
+            case 'critical':
+                return getCritical(value);
             default:
                 return <span className={column.className || 'text-gray-900'}>{value}</span>;
         }
@@ -69,7 +98,7 @@ export default function Table({ data = [], columns = [] }) {
                             {columns.map((column) => (
                                 <th 
                                     key={column.key}
-                                    className={`px-6 py-4 bg-gray-100 text-left text-xs font-bold text-gray-500 uppercase tracking-wider ${column.headerClassName || ''}`}
+                                    className={`px-6 py-4 bg-gray-100 text-xs font-bold text-gray-500 uppercase tracking-wider ${column.headerClassName || 'text-left'}`}
                                 >
                                     {column.header}
                                     {column.sortable && ' ↓'}
@@ -95,7 +124,7 @@ export default function Table({ data = [], columns = [] }) {
             </div>
             
             {data.length === 0 && (
-                <div className="text-center py-12 text-gray-500">
+                <div className="text-center py-12 text-gray-500 font-medium">
                     Không có dữ liệu
                 </div>
             )}
