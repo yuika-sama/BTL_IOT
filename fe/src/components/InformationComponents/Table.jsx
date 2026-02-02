@@ -98,7 +98,7 @@ export default function Table({ data = [], columns = [], }) {
                             {columns.map((column) => (
                                 <th 
                                     key={column.key}
-                                    className={`px-6 py-4 bg-gray-100 text-xs font-bold text-gray-500 uppercase tracking-wider ${column.headerClassName || 'text-left'}`}
+                                    className={`px-6 py-4 bg-gray-100 text-xs font-bold text-gray-600 uppercase tracking-wider ${column.headerClassName || 'text-left'}`}
                                 >
                                     {column.header}
                                     {column.sortable && ' ↓'}

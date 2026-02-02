@@ -32,7 +32,10 @@ export default function ActionHistory(){
             key: 'action', 
             header: 'Hành động', 
             accessor: 'action',
-            type: 'action'
+            type: 'action',
+            headerClassName: 'text-center',
+            cellClassName: 'text-center'
+
         },
         { 
             key: 'status', 
@@ -46,13 +49,12 @@ export default function ActionHistory(){
             key: 'executor', 
             header: 'Thực thi bởi', 
             accessor: 'executor',
-            type: 'executor'
-        },
+            type: 'executor',
+            },
         { 
             key: 'timestamp', 
             header: 'Thời gian', 
             accessor: 'timestamp',
-            // Render function để format thời gian
             render: (value) => (
                 <span className="text-gray-600">{value}</span>
             ),

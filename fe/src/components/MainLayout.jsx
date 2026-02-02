@@ -4,7 +4,7 @@ import bgImage from '../assets/BG.png'
 
 export default function MainLayout({ children }) {
     return (
-        <div className="min-h-screen bg-cover bg-center bg-no-repeat" 
+        <div className="min-h-screen bg-cover bg-center bg-no-repeat items-center" 
             style={{ backgroundImage: `url(${bgImage})` }}
         >
             <div className="min-h-screen flex flex-col items-center px-4 pb-8">

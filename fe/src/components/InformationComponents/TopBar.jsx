@@ -50,45 +50,45 @@ export default function TopBar({ filterOptions = [] }) {
 
                 {/* Filter Dropdown */}
                 <div className="relative">
-                <button
-                    onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                    className="flex items-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-3xl hover:bg-gray-50 transition-colors min-w-[140px] shadow-lg"
-                >
-                    <span className="text-gray-700">
-                        {filterOptions.find(opt => opt.type === selectedFilter)?.displayText || 'Tất cả'}
-                    </span>
-                    <ChevronDown size={16} className={`text-gray-500 transition-transform ${showFilterDropdown ? 'rotate-180' : ''}`} />
-                </button>
-                
-                {showFilterDropdown && (
-                    <div className="absolute top-full mt-2 right-0 bg-white border border-gray-200 rounded-3xl shadow-lg py-1 min-w-[140px] z-10  shadow-lg">
-                        {filterOptions.map((option) => (
-                            <button
-                                key={option.type}
-                                onClick={() => {
-                                    setSelectedFilter(option.type);
-                                    setShowFilterDropdown(false);
-                                }}
-                                className="w-full text-left px-4 py-2 hover:bg-blue-50 hover:text-blue-700 transition-colors rounded-3xl"
-                            >
-                                {option.displayText}
-                            </button>
-                        ))}
-                    </div>
-                )}
-            </div>
+                    <button
+                        onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+                        className="group flex items-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-3xl hover:bg-blue-50 transition-colors min-w-[140px] shadow-lg"
+                    >
+                        <span className="text-gray-700 group-hover:text-blue-700">
+                            {filterOptions.find(opt => opt.type === selectedFilter)?.displayText || 'Tất cả'}
+                        </span>
+                        <ChevronDown size={16} className={`text-gray-500 group-hover:text-blue-600 transition-transform ${showFilterDropdown ? 'rotate-180' : ''}`} />
+                    </button>
+                    
+                    {showFilterDropdown && (
+                        <div className="absolute top-full mt-2 right-0 bg-white border border-gray-200 rounded-3xl shadow-lg py-1 min-w-[140px] z-10  shadow-lg">
+                            {filterOptions.map((option) => (
+                                <button
+                                    key={option.type}
+                                    onClick={() => {
+                                        setSelectedFilter(option.type);
+                                        setShowFilterDropdown(false);
+                                    }}
+                                    className="w-full text-left px-4 py-2 hover:bg-blue-50 hover:text-blue-700 transition-colors rounded-3xl"
+                                >
+                                    {option.displayText}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Sort Dropdown */}
             <div className="relative">
                 <button
                     onClick={() => setShowSortDropdown(!showSortDropdown)}
-                    className="flex items-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-3xl hover:bg-gray-50 transition-colors min-w-[160px] shadow-lg"
+                    className="group flex items-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-3xl hover:bg-blue-50 transition-colors min-w-[160px] shadow-lg"
                 >
-                    <span className="text-gray-700">
+                    <span className="group-hover:text-blue-700 text-gray-700">
                         Sắp xếp: {sortOptions.find(opt => opt.value === sortOrder)?.label}
                     </span>
-                    <ChevronDown size={16} className={`text-gray-500 transition-transform ${showSortDropdown ? 'rotate-180' : ''}`} />
+                    <ChevronDown size={16} className={`group-hover:text-blue-600 text-gray-500 transition-transform ${showSortDropdown ? 'rotate-180' : ''}`} />
                 </button>
                 
                 {showSortDropdown && (
@@ -114,12 +114,12 @@ export default function TopBar({ filterOptions = [] }) {
                 <div className="relative">
                     <button
                         onClick={() => setShowTimeDropdown(!showTimeDropdown)}
-                        className="flex items-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-3xl hover:bg-gray-50 transition-colors min-w-[160px] shadow-lg"
+                        className="group flex items-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-3xl hover:bg-blue-50 transition-colors min-w-[160px] shadow-lg"
                     >
-                        <span className="text-gray-700">
+                        <span className="group-hover:text-blue-700 text-gray-700">
                             Tìm kiếm theo: {timeUnits.find(unit => unit.value === timeUnit)?.label}
                         </span>
-                        <ChevronDown size={16} className={`text-gray-500 transition-transform ${showTimeDropdown ? 'rotate-180' : ''}`} />
+                        <ChevronDown size={16} className={`group-hover:text-blue-600 text-gray-500 transition-transform ${showTimeDropdown ? 'rotate-180' : ''}`} />
                     </button>
                     
                     {showTimeDropdown && (
