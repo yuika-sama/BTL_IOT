@@ -75,7 +75,7 @@ export default function Dashboard() {
                         data1={sampleTemperatureData} 
                         data2={sampleHumidityData}
                         color1="#22c55e" 
-                        color2="gray" 
+                        color2="blue" 
                         label1="Nhiệt độ"
                         label2="Độ ẩm"
                         unit1="°C"
