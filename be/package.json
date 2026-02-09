@@ -5,13 +5,18 @@
   "main": "index.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "dev": "nodemon src/server.js",
+    "setup:sensors": "node src/scripts/setupSensors.js",
+    "generate:data": "node src/scripts/generateSampleData.js",
+    "test:sensors": "node src/scripts/testSensorData.js",
+    "monitor": "node src/scripts/monitorSensorData.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "chalk": "^4.1.2",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",

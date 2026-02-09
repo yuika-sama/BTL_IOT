@@ -1,14 +1,14 @@
 require('dotenv').config();
 const http = require('http');
 const app = require('./app');
-const { websocketService, mqttService, dataCleanupService } = require('./services');
+const { socketService, mqttService } = require('./services');
 
 const PORT = process.env.PORT || 3000;
 
 const server = http.createServer(app);
 
 // Initialize Socket.IO
-websocketService.initialize(server);
+socketService.initialize(server);
 
 // Initialize MQTT Service
 mqttService.initialize();

@@ -1,4 +1,5 @@
 const Alert = require('../models/alertModel');
+const alertService = require('../services/alertService');
 
 class AlertController {
     // Notification Page: Get all alerts with pagination, search, filters
@@ -31,6 +32,24 @@ class AlertController {
         }
     }
 
+    // Get statistics
+    static async getStatistics(req, res, next) {
+        try {
+            const { days = 7 } = req.query;
+            
+            // Use service instead of direct model
+            const stats = await alertService.getAlertStatistics(parseInt(days));
+
+            res.json({
+                success: true,
+                message: 'Get alert statistics successfully',
+                data: stats
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
     // Get alert by ID
     static async getById(req, res, next) {
         try {
@@ -54,130 +73,7 @@ class AlertController {
         }
     }
 
-    // Get alerts by device ID
-    static async getByDeviceId(req, res, next) {
-        try {
-            const { deviceId } = req.params;
-            const { limit = 50 } = req.query;
-            
-            const alerts = await Alert.getByDeviceId(deviceId, parseInt(limit));
-
-            res.json({
-                success: true,
-                message: 'Get alerts by device successfully',
-                data: alerts
-            });
-        } catch (error) {
-            next(error);
-        }
-    }
-
-    // Get alerts by sensor ID
-    static async getBySensorId(req, res, next) {
-        try {
-            const { sensorId } = req.params;
-            const { limit = 50 } = req.query;
-            
-            const alerts = await Alert.getBySensorId(sensorId, parseInt(limit));
-
-            res.json({
-                success: true,
-                message: 'Get alerts by sensor successfully',
-                data: alerts
-            });
-        } catch (error) {
-            next(error);
-        }
-    }
-
-    // Get alerts by severity
-    static async getBySeverity(req, res, next) {
-        try {
-            const { severity } = req.params;
-            const { limit = 50 } = req.query;
-            
-            const alerts = await Alert.getBySeverity(severity, parseInt(limit));
-
-            res.json({
-                success: true,
-                message: 'Get alerts by severity successfully',
-                data: alerts
-            });
-        } catch (error) {
-            next(error);
-        }
-    }
-
-    // Get alerts by date range
-    static async getByDateRange(req, res, next) {
-        try {
-            const { startDate, endDate } = req.query;
-
-            if (!startDate || !endDate) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Start date and end date are required'
-                });
-            }
-
-            const alerts = await Alert.getByDateRange(startDate, endDate);
-
-            res.json({
-                success: true,
-                message: 'Get alerts by date range successfully',
-                data: alerts
-            });
-        } catch (error) {
-            next(error);
-        }
-    }
-
-    // Get statistics
-    static async getStatistics(req, res, next) {
-        try {
-            const stats = await Alert.getStatistics();
-
-            res.json({
-                success: true,
-                message: 'Get alert statistics successfully',
-                data: stats
-            });
-        } catch (error) {
-            next(error);
-        }
-    }
-
-    // Create new alert (usually from MQTT when threshold exceeded)
-    static async create(req, res, next) {
-        try {
-            const { sensor_id, device_id, title, description, severity } = req.body;
-
-            if (!sensor_id || !device_id || !title || !description || !severity) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Sensor ID, device ID, title, description, and severity are required'
-                });
-            }
-
-            const alert = await Alert.create({
-                sensor_id,
-                device_id,
-                title,
-                description,
-                severity
-            });
-
-            res.status(201).json({
-                success: true,
-                message: 'Alert created successfully',
-                data: alert
-            });
-        } catch (error) {
-            next(error);
-        }
-    }
-
-    // Delete alert
+    // Delete alert (mark as read)
     static async delete(req, res, next) {
         try {
             const { id } = req.params;
@@ -199,7 +95,7 @@ class AlertController {
         }
     }
 
-    // Delete old alerts
+    // Delete old alerts (Admin only)
     static async deleteOldAlerts(req, res, next) {
         try {
             const { days = 30 } = req.query;

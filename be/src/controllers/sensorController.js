@@ -1,7 +1,24 @@
 const Sensor = require('../models/sensorModel');
+const sensorService = require('../services/SensorService');
 
 class SensorController {
-    // Get all sensors with pagination, search, filters
+    // Dashboard: Get latest values for 4 sensors (temperature, humidity, light, dust)
+    static async getLatestValues(req, res, next) {
+        try {
+            // Use service instead of direct model
+            const dashboardData = await sensorService.getDashboardData();
+            
+            res.json({
+                success: true,
+                message: 'Get latest sensor values successfully',
+                data: dashboardData
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    // Get all sensors with pagination, search, filters (Admin only)
     static async getAll(req, res, next) {
         try {
             const options = {
@@ -28,37 +45,7 @@ class SensorController {
         }
     }
 
-    // Dashboard: Get latest values for 4 sensors (temperature, humidity, light, dust)
-    static async getLatestValues(req, res, next) {
-        try {
-            // Get sensor IDs from environment variables
-            const sensorIds = [
-                process.env.SENSOR_TEMPERATURE_ID,
-                process.env.SENSOR_HUMIDITY_ID,
-                process.env.SENSOR_LIGHT_ID,
-                process.env.SENSOR_DUST_ID
-            ].filter(id => id); // Remove undefined values
-
-            if (sensorIds.length === 0) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Sensor IDs not configured in environment variables'
-                });
-            }
-
-            const sensors = await Sensor.getLatestValuesByIds(sensorIds);
-            
-            res.json({
-                success: true,
-                message: 'Get latest sensor values successfully',
-                data: sensors
-            });
-        } catch (error) {
-            next(error);
-        }
-    }
-
-    // Get sensor by ID
+    // Get sensor by ID (Admin only)
     static async getById(req, res, next) {
         try {
             const { id } = req.params;
@@ -81,7 +68,7 @@ class SensorController {
         }
     }
 
-    // Get sensors by device ID
+    // Get sensors by device ID (Admin only)
     static async getByDeviceId(req, res, next) {
         try {
             const { deviceId } = req.params;
@@ -97,7 +84,7 @@ class SensorController {
         }
     }
 
-    // Create new sensor
+    // Create new sensor (Admin only)
     static async create(req, res, next) {
         try {
             const { device_id, name, unit, threshold_min, threshold_max } = req.body;
@@ -127,20 +114,13 @@ class SensorController {
         }
     }
 
-    // Update sensor
+    // Update sensor (Admin only)
     static async update(req, res, next) {
         try {
             const { id } = req.params;
             const sensorData = req.body;
 
             const sensor = await Sensor.update(id, sensorData);
-
-            if (!sensor) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Sensor not found'
-                });
-            }
 
             res.json({
                 success: true,
@@ -152,7 +132,7 @@ class SensorController {
         }
     }
 
-    // Delete sensor
+    // Delete sensor (Admin only)
     static async delete(req, res, next) {
         try {
             const { id } = req.params;

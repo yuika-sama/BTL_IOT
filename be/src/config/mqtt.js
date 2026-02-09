@@ -1,19 +1,28 @@
 const mqtt = require('mqtt');
-require('dotenv').config();
 
-const mqttClient = mqtt.connect(process.env.MQTT_BROKER_URL, {
+const brokerUrl = `mqtts://${process.env.MQTT_BROKER}:${process.env.MQTT_PORT}`;
+
+const clientId = process.env.MQTT_CLIENT_ID || `be-${process.pid}-${Date.now()}`;
+
+const options = {
+  clientId,
   username: process.env.MQTT_USERNAME,
   password: process.env.MQTT_PASSWORD,
+  rejectUnauthorized: process.env.MQTT_TLS_REJECT_UNAUTHORIZED === 'true',
   clean: true,
-  reconnectPeriod: 1000
+  reconnectPeriod: 1000,
+};
+
+console.log('🔌 Connecting to MQTT:', brokerUrl);
+
+const client = mqtt.connect(brokerUrl, options);
+
+client.on('connect', () => {
+  console.log('✅ MQTT Connected!');
 });
 
-mqttClient.on('connect', () => {
-  console.log('Connected to MQTT broker');
+client.on('error', (err) => {
+  console.error('❌ MQTT Error:', err.message);
 });
 
-mqttClient.on('error', (err) => {
-  console.error('MQTT connection error:', err);
-});
-
-module.exports = mqttClient;
+module.exports = client;

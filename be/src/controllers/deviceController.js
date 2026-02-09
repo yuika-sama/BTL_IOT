@@ -1,10 +1,49 @@
 const Device = require('../models/deviceModel');
-const ActionHistory = require('../models/actionHistoryModel');
-const mqttService = require('../services/mqttService');
-const websocketService = require('../services/websocketService');
+const deviceService = require('../services/deviceService');
 
 class DeviceController {
-    // Get all devices with pagination, search, filters
+    // Dashboard: Get all devices info
+    static async getAllDevicesInfo(req, res, next) {
+        try {
+            const devices = await Device.getAllDevicesInfo();
+            
+            res.json({
+                success: true,
+                message: 'Get all devices info successfully',
+                data: devices
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    // Dashboard: Toggle device status (ON/OFF)
+    static async toggleStatus(req, res, next) {
+        try {
+            const { id } = req.params;
+            const { status, executor = 'user' } = req.body;
+
+            if (status === undefined) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Status is required'
+                });
+            }
+
+            // Use service instead of direct model
+            const result = await deviceService.toggleDevice(id, status, executor);
+
+            res.json({
+                success: true,
+                message: `Device turned ${status ? 'ON' : 'OFF'} successfully`,
+                data: result
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    // Get all devices with pagination, search, filters (Admin only)
     static async getAll(req, res, next) {
         try {
             const options = {
@@ -32,22 +71,7 @@ class DeviceController {
         }
     }
 
-    // Dashboard: Get all devices info
-    static async getAllDevicesInfo(req, res, next) {
-        try {
-            const devices = await Device.getAllDevicesInfo();
-            
-            res.json({
-                success: true,
-                message: 'Get all devices info successfully',
-                data: devices
-            });
-        } catch (error) {
-            next(error);
-        }
-    }
-
-    // Get device by ID
+    // Get device by ID (Admin only)
     static async getById(req, res, next) {
         try {
             const { id } = req.params;
@@ -70,30 +94,7 @@ class DeviceController {
         }
     }
 
-    // Get device with sensors
-    static async getWithSensors(req, res, next) {
-        try {
-            const { id } = req.params;
-            const device = await Device.getWithSensors(id);
-
-            if (!device) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Device not found'
-                });
-            }
-
-            res.json({
-                success: true,
-                message: 'Get device with sensors successfully',
-                data: device
-            });
-        } catch (error) {
-            next(error);
-        }
-    }
-
-    // Create new device
+    // Create new device (Admin only)
     static async create(req, res, next) {
         try {
             const { name, type, status } = req.body;
@@ -117,20 +118,13 @@ class DeviceController {
         }
     }
 
-    // Update device
+    // Update device (Admin only)
     static async update(req, res, next) {
         try {
             const { id } = req.params;
             const deviceData = req.body;
 
             const device = await Device.update(id, deviceData);
-
-            if (!device) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Device not found'
-                });
-            }
 
             res.json({
                 success: true,
@@ -142,7 +136,7 @@ class DeviceController {
         }
     }
 
-    // Delete device
+    // Delete device (Admin only)
     static async delete(req, res, next) {
         try {
             const { id } = req.params;
@@ -158,115 +152,6 @@ class DeviceController {
             res.json({
                 success: true,
                 message: 'Device deleted successfully'
-            });
-        } catch (error) {
-            next(error);
-        }
-    }
-
-    // Dashboard: Toggle device status (ON/OFF)
-    static async toggleStatus(req, res, next) {
-        try {
-            const { id } = req.params;
-            const { status, executor = 'system' } = req.body;
-
-            if (status === undefined) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Status is required'
-                });
-            }
-
-            // Update device status in database
-            const device = await Device.updateStatus(id, status);
-
-            if (!device) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Device not found'
-                });
-            }
-
-            // Save to action history
-            const actionHistory = await ActionHistory.create({
-                device_id: id,
-                command: status ? 'ON' : 'OFF',
-                executor: executor,
-                status: 'success'
-            });
-
-            // Publish to MQTT
-            mqttService.publish(process.env.MQTT_TOPIC_DEVICE, {
-                device_id: id,
-                command: status ? 'ON' : 'OFF',
-                timestamp: new Date()
-            });
-
-            // Broadcast to WebSocket clients
-            websocketService.broadcast('device_status_changed', {
-                device_id: id,
-                device_name: device.name,
-                status: status,
-                timestamp: new Date()
-            });
-
-            res.json({
-                success: true,
-                message: `Device turned ${status ? 'ON' : 'OFF'} successfully`,
-                data: {
-                    device,
-                    action: actionHistory
-                }
-            });
-        } catch (error) {
-            // Save failed action to history
-            try {
-                await ActionHistory.create({
-                    device_id: req.params.id,
-                    command: req.body.status ? 'ON' : 'OFF',
-                    executor: req.body.executor || 'system',
-                    status: 'failed'
-                });
-            } catch (historyError) {
-                console.error('Error saving action history:', historyError);
-            }
-            next(error);
-        }
-    }
-
-    // Update connection status
-    static async updateConnection(req, res, next) {
-        try {
-            const { id } = req.params;
-            const { is_connected } = req.body;
-
-            if (is_connected === undefined) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Connection status is required'
-                });
-            }
-
-            const device = await Device.updateConnection(id, is_connected);
-
-            if (!device) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Device not found'
-                });
-            }
-
-            // Broadcast to WebSocket clients
-            websocketService.broadcast('device_connection_changed', {
-                device_id: id,
-                is_connected: is_connected,
-                timestamp: new Date()
-            });
-
-            res.json({
-                success: true,
-                message: 'Device connection status updated successfully',
-                data: device
             });
         } catch (error) {
             next(error);

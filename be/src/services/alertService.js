@@ -1,16 +1,17 @@
 const Alert = require('../models/alertModel');
-const websocketService = require('./websocketService');
+const socketService = require('./socketService');
 
 class AlertService {
   // Create and broadcast alert
   static async createAlert(alertData) {
     try {
+      // Use model method
       const alert = await Alert.create(alertData);
 
       // Broadcast to WebSocket clients
-      websocketService.broadcast('new_alert', alert);
-      websocketService.emitToDevice(alertData.device_id, 'device_alert', alert);
-      websocketService.emitToSensor(alertData.sensor_id, 'sensor_alert', alert);
+      socketService.broadcast('new_alert', alert);
+      socketService.emitToDevice(alertData.device_id, 'device_alert', alert);
+      socketService.emitToSensor(alertData.sensor_id, 'sensor_alert', alert);
 
       return alert;
     } catch (error) {
@@ -21,7 +22,8 @@ class AlertService {
   // Get alert statistics
   static async getAlertStatistics(days = 7) {
     try {
-      const stats = await Alert.getStatistics();
+      // Use model method
+      const stats = await Alert.getStatistics(days);
 
       // Group by severity
       const severityCounts = {
@@ -42,19 +44,6 @@ class AlertService {
         by_date: stats,
         total: Object.values(severityCounts).reduce((a, b) => a + b, 0)
       };
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  // Clean old alerts
-  static async cleanOldAlerts(days = 30) {
-    try {
-      const deletedCount = await Alert.deleteOldAlerts(days);
-      
-      console.log(`🧹 Cleaned ${deletedCount} old alerts (older than ${days} days)`);
-      
-      return deletedCount;
     } catch (error) {
       throw error;
     }

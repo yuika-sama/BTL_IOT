@@ -1,7 +1,7 @@
 const { time } = require('console');
-const Server = require('socket.io');
+const {Server} = require('socket.io');
 
-let io
+let io;
 
 const initialize = (server) => {
     io = new Server(server, {
