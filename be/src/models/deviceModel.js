@@ -155,6 +155,11 @@ class Device {
         );
         return rows;
     }
+
+    static async findById(id){
+        const [rows] = await db.execute('SELECT * FROM devices WHERE id = ?', [id]);
+        return rows[0];
+    }
 }
 
 module.exports = Device;

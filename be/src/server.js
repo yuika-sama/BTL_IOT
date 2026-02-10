@@ -1,7 +1,7 @@
 require('dotenv').config();
 const http = require('http');
 const app = require('./app');
-const { socketService, mqttService } = require('./services');
+const { socketService } = require('./services');
 
 const PORT = process.env.PORT || 3000;
 
@@ -9,9 +9,6 @@ const server = http.createServer(app);
 
 // Initialize Socket.IO
 socketService.initialize(server);
-
-// Initialize MQTT Service
-mqttService.initialize();
 
 // Start scheduled data cleanup (optional)
 // dataCleanupService.startScheduledCleanup();

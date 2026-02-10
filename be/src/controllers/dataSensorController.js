@@ -34,39 +34,37 @@ class DataSensorController {
     // Data Sensor Page: Get history of 4 sensor types
     static async getSensorHistory(req, res, next) {
         try {
-            // Get sensor IDs from environment variables
-            const sensorIds = [
-                process.env.SENSOR_TEMPERATURE_ID,
-                process.env.SENSOR_HUMIDITY_ID,
-                process.env.SENSOR_LIGHT_ID,
-                process.env.SENSOR_DUST_ID
-            ].filter(id => id);
-
-            if (sensorIds.length === 0) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Sensor IDs not configured in environment variables'
-                });
-            }
-
-            const options = {
-                page: parseInt(req.query.page) || 1,
-                limit: parseInt(req.query.limit) || 10,
-                search: req.query.search || '',
-                orderBy: req.query.orderBy || 'created_at',
-                orderDirection: req.query.orderDirection || 'DESC',
-                filters: {
-                    startDate: req.query.startDate || undefined,
-                    endDate: req.query.endDate || undefined
-                }
-            };
-
-            const result = await DataSensor.getSensorHistory(sensorIds, options);
+            const { sensorType, startDate, endDate, limit = 50, offset = 0 } = req.query;
+            
+            const history = await DataSensor.getHistory({
+                sensorType,
+                startDate,
+                endDate,
+                limit: parseInt(limit),
+                offset: parseInt(offset)
+            });
             
             res.json({
                 success: true,
                 message: 'Get sensor history successfully',
-                ...result
+                data: history
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    // Get aggregate data for charts
+    static async getAggregateData(req, res, next) {
+        try {
+            const { sensorId } = req.params;
+            const { interval = 'hour', limit = 24 } = req.query;
+            
+            const data = await DataSensor.getAggregateData(sensorId, interval, parseInt(limit));
+            
+            res.json({
+                success: true,
+                data
             });
         } catch (error) {
             next(error);

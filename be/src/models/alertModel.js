@@ -139,6 +139,20 @@ class Alert {
         return rows;
     }
 
+    static async getStatistics() {
+        const [rows] = await db.query(`
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN severity = 'HIGH' THEN 1 ELSE 0 END) as high,
+                SUM(CASE WHEN severity = 'MEDIUM' THEN 1 ELSE 0 END) as medium,
+                SUM(CASE WHEN severity = 'LOW' THEN 1 ELSE 0 END) as low,
+                COUNT(DISTINCT device_id) as affected_devices,
+                COUNT(DISTINCT sensor_id) as affected_sensors
+            FROM alerts
+        `);
+        return rows[0];
+    }
+
     static async getBySeverity(severity, limit = 50) {
         const [rows] = await db.query(
             `SELECT a.*, 
@@ -191,20 +205,6 @@ class Alert {
             WHERE a.created_at BETWEEN ? AND ?
             ORDER BY a.created_at DESC`,
             [startDate, endDate]
-        );
-        return rows;
-    }
-
-    static async getStatistics() {
-        const [rows] = await db.query(
-            `SELECT 
-                severity,
-                COUNT(*) as count,
-                DATE(created_at) as date
-            FROM alerts
-            WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-            GROUP BY severity, DATE(created_at)
-            ORDER BY date DESC, severity`
         );
         return rows;
     }

@@ -21,22 +21,28 @@ class DeviceController {
     static async toggleStatus(req, res, next) {
         try {
             const { id } = req.params;
-            const { status, executor = 'user' } = req.body;
-
-            if (status === undefined) {
-                return res.status(400).json({
+            
+            const device = await Device.getById(id);
+            if (!device) {
+                return res.status(404).json({
                     success: false,
-                    message: 'Status is required'
+                    message: 'Device not found'
                 });
             }
 
-            // Use service instead of direct model
-            const result = await deviceService.toggleDevice(id, status, executor);
+            // Toggle status: 1 (ON) <-> 0 (OFF)
+            const newStatus = device.status === 1 ? 0 : 1;
+            
+            // Update status
+            await Device.updateStatus(id, newStatus);
+
+            // Get updated device
+            const updatedDevice = await Device.getById(id);
 
             res.json({
                 success: true,
-                message: `Device turned ${status ? 'ON' : 'OFF'} successfully`,
-                data: result
+                message: `Device status changed to ${newStatus === 1 ? 'ON' : 'OFF'}`,
+                data: updatedDevice
             });
         } catch (error) {
             next(error);

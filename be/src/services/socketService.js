@@ -1,120 +1,51 @@
-const { time } = require('console');
-const {Server} = require('socket.io');
+class SocketService {
+  constructor() {
+    this.io = null;
+  }
 
-let io;
-
-const initialize = (server) => {
-    io = new Server(server, {
-        cors: {
-            origin: "*",
-            methods: ["GET", "POST"],
-            credentials: true
-        },
-        pingTimeout: 60000,
-        pingInterval: 25000
+  initialize(server) {
+    const socketIO = require('socket.io');
+    
+    this.io = socketIO(server, {
+      cors: {
+        origin: process.env.CLIENT_URL || 'http://localhost:5173',
+        methods: ['GET', 'POST'],
+        credentials: true
+      }
     });
 
-    io.on('connection', (socket) => {
-        console.log('New client connected:', socket.id);
+    this.io.on('connection', (socket) => {
+      console.log('✅ Client connected:', socket.id);
 
-        socket.on('join_device', (deviceId) => {
-            socket.join(`device_${deviceId}`);
-            console.log(`Socket ${socket.id} joined room device_${deviceId}`);
-        });
-
-        socket.on('leave_room', (room) => {
-            socket.leave(room);
-            console.log(`Socket ${socket.id} left room ${room}`);
-        });
-
-        socket.on('message', (data) => {
-            console.log('Message from client:', data);
-
-            socket.emit('message_received', {
-                success: true,
-                data: data,
-                timestamp: new Date()
-            });
-        });
-
-        socket.on('disconnect', (reason) => {
-            console.log('Client disconnected:', socket.id, 'Reason:', reason);
-        });
-
-        socket.on('error', (error) => {
-            console.error('Socket error from client:', socket.id, 'Error:', error);
-        });
-
-        socket.emit('connected', {
-            message: 'Successfully connected to the server',
-            socketId: socket.id,
-            timestamp: new Date()
-        });
-    })
-
-    io.on('error', (error) => {
-        console.error('Socket.io server error:', error);
+      socket.on('disconnect', () => {
+        console.log('❌ Client disconnected:', socket.id);
+      });
     });
 
-    console.log('Socket.io server initialized');
-}
+    console.log('✅ Socket.IO initialized');
+  }
 
-// Broadcast to all connected clients
-const broadcast = (event, data) => {
-    if (io) {
-        io.emit(event, {
-            ...data,
-            timestamp: new Date()
-        });
-        console.log(`Broadcasted event '${event}' to all clients`);
+  broadcastSensorData(data) {
+    if (this.io) {
+      this.io.emit('sensor_data', data);
+      console.log('📤 Broadcast sensor data to clients');
     }
-}
+  }
 
-//  Emit to specific room
-const emitToRoom = (room, event, data) => {
-    if (io) {
-        io.to(room).emit(event, {
-            ...data,
-            timestamp: new Date()
-        });
-        console.log(`Emitted event '${event}' to room '${room}'`);
+  broadcastAlert(alert) {
+    if (this.io) {
+      this.io.emit('alert', alert);
+      console.log('🚨 Broadcast alert to clients');
     }
-}
+  }
 
-const emitToDevice = (deviceId, event, data) => {
-    const room = `device_${deviceId}`;
-    emitToRoom(room, event, data);
-}   
-
-const emitToSensor = (sensorId, event, data) => {
-    const room = `sensor_${sensorId}`;
-    emitToRoom(room, event, data);
-}
-
-const getIO = () => io;
-
-const getClientsCount = () => {
-    if (io) {
-        return io.sockets.sockets.size;
+  broadcastDeviceStatus(status) {
+    if (this.io) {
+      this.io.emit('device_status', status);
+      console.log('📡 Broadcast device status to clients');
     }
-    return 0;
+  }
 }
 
-const getClientsInRoom = (room) => {
-    if (io) {
-        const clients = io.sockets.adapter.rooms.get(room);
-        return clients ? clients.size : 0;
-    }
-    return 0;
-}
-
-module.exports = {
-    initialize,
-    broadcast,
-    emitToRoom,
-    emitToDevice,
-    emitToSensor,
-    getIO,
-    getClientsCount,
-    getClientsInRoom
-};
+// Export instance (singleton)
+module.exports = new SocketService();

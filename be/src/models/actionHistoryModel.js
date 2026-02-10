@@ -100,6 +100,19 @@ class ActionHistory {
         };
     }
 
+    static async getStatistics() {
+        const [rows] = await db.query(`
+            SELECT 
+                COUNT(*) as total,
+                COUNT(DISTINCT device_id) as unique_devices,
+                SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as success_count,
+                SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_count,
+                SUM(CASE WHEN status = 'waiting' THEN 1 ELSE 0 END) as waiting_count
+            FROM action_history
+        `);
+        return rows[0];
+    }
+
     static async getById(id) {
         const [rows] = await db.query(
             `SELECT ah.*, d.name as device_name, d.type as device_type

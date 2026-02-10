@@ -1,15 +1,15 @@
-const socketService = require('./socketService');
-const mqttService = require('./mqttService');
-const deviceService = require('./deviceService');
-const sensorService = require('./SensorService');
 const alertService = require('./alertService');
 const dataCleanupService = require('./dataCleanupService');
+const deviceService = require('./deviceService');
+const mqttService = require('./mqttService');
+const sensorService = require('./SensorService');
+const socketService = require('./socketService');
 
 module.exports = {
-  socketService,
-  mqttService,
-  deviceService,
-  sensorService,
   alertService,
-  dataCleanupService
+  dataCleanupService,
+  deviceService,
+  mqttService,
+  sensorService,
+  socketService
 };

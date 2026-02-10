@@ -9,6 +9,8 @@
     "setup:sensors": "node src/scripts/setupSensors.js",
     "generate:data": "node src/scripts/generateSampleData.js",
     "test:sensors": "node src/scripts/testSensorData.js",
+    "test:api": "node src/scripts/apiTest.js",
+    "test:socket": "node src/scripts/socketTest.js",
     "monitor": "node src/scripts/monitorSensorData.js"
   },
   "keywords": [],
@@ -16,6 +18,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "axios": "^1.13.5",
     "chalk": "^4.1.2",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
@@ -23,6 +26,7 @@
     "mqtt": "^5.15.0",
     "mysql2": "^3.16.3",
     "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
     "uuid": "^13.0.0"
   },
   "devDependencies": {

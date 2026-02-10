@@ -2,6 +2,106 @@ const db = require('../config/db');
 const {v4: uuidv4} = require('uuid');
 
 class DataSensor{
+    static async create(data) {
+        const id = uuidv4();
+        const { sensor_id, value, timestamp = new Date() } = data;
+        const [result] = await db.query(
+            'INSERT INTO data_sensors (id, sensor_id, value, created_at) VALUES (?, ?, ?, ?)',
+            [id, sensor_id, value, timestamp]
+        );
+        return { id, sensor_id, value, created_at: timestamp };
+    }
+
+    static async getLatestBySensor(sensorId) {
+        const [rows] = await db.query(
+            `SELECT ds.id, ds.sensor_id, ds.value, ds.created_at as timestamp,
+                    s.name, s.unit 
+             FROM data_sensors ds
+             JOIN sensors s ON ds.sensor_id = s.id
+             WHERE ds.sensor_id = ?
+             ORDER BY ds.created_at DESC
+             LIMIT 1`,
+            [sensorId]
+        );
+        return rows[0];
+    }
+
+    static async getHistory(filters = {}) {
+        let query = `
+            SELECT ds.id, ds.sensor_id, ds.value, ds.created_at as timestamp,
+                   s.name, s.unit, s.device_id
+            FROM data_sensors ds
+            JOIN sensors s ON ds.sensor_id = s.id
+            WHERE 1=1
+        `;
+        const params = [];
+
+        if (filters.sensorType) {
+            // Match sensor name based on type (case-insensitive)
+            const typeMap = {
+                'temperature': 'nhiệt độ',
+                'humidity': 'độ ẩm',
+                'light': 'ánh sáng',
+                'dust': 'bụi'
+            };
+            const sensorName = typeMap[filters.sensorType.toLowerCase()] || filters.sensorType;
+            query += ' AND LOWER(s.name) LIKE LOWER(?)';
+            params.push(`%${sensorName}%`);
+        }
+
+        if (filters.deviceId) {
+            query += ' AND s.device_id = ?';
+            params.push(filters.deviceId);
+        }
+
+        if (filters.startDate) {
+            query += ' AND ds.created_at >= ?';
+            params.push(filters.startDate);
+        }
+
+        if (filters.endDate) {
+            query += ' AND ds.created_at <= ?';
+            params.push(filters.endDate);
+        }
+
+        query += ' ORDER BY ds.created_at DESC';
+
+        if (filters.limit) {
+            query += ' LIMIT ? OFFSET ?';
+            params.push(parseInt(filters.limit), parseInt(filters.offset || 0));
+        }
+
+        const [rows] = await db.query(query, params);
+        return rows;
+    }
+
+    static async getAggregateData(sensorId, interval = 'hour', limit = 24) {
+        const intervalMap = {
+            minute: '%Y-%m-%d %H:%i:00',
+            hour: '%Y-%m-%d %H:00:00',
+            day: '%Y-%m-%d'
+        };
+
+        const dateFormat = intervalMap[interval] || intervalMap.hour;
+
+        const [rows] = await db.query(
+            `SELECT 
+                DATE_FORMAT(created_at, ?) as time_bucket,
+                AVG(value) as avg_value,
+                MIN(value) as min_value,
+                MAX(value) as max_value,
+                COUNT(*) as count
+             FROM data_sensors
+             WHERE sensor_id = ?
+             GROUP BY time_bucket
+             ORDER BY time_bucket DESC
+             LIMIT ?`,
+            [dateFormat, sensorId, limit]
+        );
+        return rows;
+    }
+
+
     static async getAll(options = {}){
         const {
             page = 1,
@@ -192,15 +292,6 @@ class DataSensor{
             [sensor_id]
         );
         return rows;
-    }
-
-    static async create(dataSensorData){
-        const id = uuidv4();
-        const {sensor_id, value} = dataSensorData;
-        await db.query('INSERT INTO data_sensors (id, sensor_id, value) VALUES (?, ?, ?)',
-            [id, sensor_id, value]
-        );
-        return this.getById(id);
     }
 
     static async delete(id){

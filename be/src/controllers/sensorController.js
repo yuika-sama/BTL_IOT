@@ -5,15 +5,35 @@ class SensorController {
     // Dashboard: Get latest values for 4 sensors (temperature, humidity, light, dust)
     static async getLatestValues(req, res, next) {
         try {
-            // Use service instead of direct model
-            const dashboardData = await sensorService.getDashboardData();
+            const DataSensorModel = require('../models/dataSensorModel');
+            
+            const sensorIds = {
+                temperature: process.env.SENSOR_TEMPERATURE_ID,
+                humidity: process.env.SENSOR_HUMIDITY_ID,
+                light: process.env.SENSOR_LIGHT_ID,
+                dust: process.env.SENSOR_DUST_ID
+            };
+
+            const latestValues = {};
+
+            for (const [type, sensorId] of Object.entries(sensorIds)) {
+                if (!sensorId) {
+                    console.warn(`⚠️  ${type.toUpperCase()}_ID not set in .env`);
+                    latestValues[type] = null;
+                    continue;
+                }
+
+                const data = await DataSensorModel.getLatestBySensor(sensorId);
+                latestValues[type] = data || null;
+            }
             
             res.json({
                 success: true,
                 message: 'Get latest sensor values successfully',
-                data: dashboardData
+                data: latestValues
             });
         } catch (error) {
+            console.error('❌ getLatestValues error:', error);
             next(error);
         }
     }

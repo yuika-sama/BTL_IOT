@@ -10,8 +10,8 @@ const alertRoutes = require('./alertRoutes');
 // API Routes
 router.use('/devices', deviceRoutes);
 router.use('/sensors', sensorRoutes);
-router.use('/data', dataSensorRoutes);
-router.use('/actions', actionHistoryRoutes);
+router.use('/data-sensors', dataSensorRoutes);
+router.use('/action-history', actionHistoryRoutes);
 router.use('/alerts', alertRoutes);
 
 // API Info
@@ -23,8 +23,8 @@ router.get('/', (req, res) => {
     endpoints: {
       devices: '/api/devices',
       sensors: '/api/sensors',
-      data: '/api/data',
-      actions: '/api/actions',
+      dataSensors: '/api/data-sensors',
+      actionHistory: '/api/action-history',
       alerts: '/api/alerts'
     }
   });
