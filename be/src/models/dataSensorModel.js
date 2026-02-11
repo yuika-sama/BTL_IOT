@@ -210,6 +210,13 @@ class DataSensor{
             filters = {}
         } = options;
 
+        // Map frontend field names to database column names
+        const orderByMap = {
+            'timestamp': 'created_at',
+            'created_at': 'created_at'
+        };
+        const dbOrderBy = orderByMap[orderBy] || 'created_at';
+
         const offset = (page - 1) * limit;
         let whereConditions = ['ds.sensor_id IN (?)'];
         let queryParams = [sensorIds];
@@ -237,34 +244,93 @@ class DataSensor{
 
         const whereClause = 'WHERE ' + whereConditions.join(' AND ');
 
-        // Count total
-        const [countResult] = await db.query(
-            `SELECT COUNT(*) as total FROM data_sensors ds ${whereClause}`,
+        // Đầu tiên, lấy tất cả timestamps unique và đếm
+        const [allTimestamps] = await db.query(
+            `SELECT DISTINCT ds.created_at
+             FROM data_sensors ds
+             ${whereClause}
+             ORDER BY ds.created_at ${orderDirection}`,
             queryParams
         );
-        const total = countResult[0].total;
+        
+        const total = allTimestamps.length;
 
-        // Get data - pivot table for 4 sensors
+        // Lấy subset timestamps theo pagination
+        const paginatedTimestamps = allTimestamps.slice(offset, offset + parseInt(limit));
+        
+        if (paginatedTimestamps.length === 0) {
+            return {
+                data: [],
+                pagination: {
+                    page: parseInt(page),
+                    limit: parseInt(limit),
+                    total,
+                    totalPages: Math.ceil(total / limit)
+                }
+            };
+        }
+
+        // Lấy data cho các timestamps đã phân trang
+        const timestampList = paginatedTimestamps.map(t => t.created_at);
+        
         const [rows] = await db.query(
             `SELECT 
-                @row_number := @row_number + 1 AS stt,
-                MAX(CASE WHEN s.name = 'temperature' THEN ds.value END) as temperature,
-                MAX(CASE WHEN s.name = 'humidity' THEN ds.value END) as humidity,
-                MAX(CASE WHEN s.name = 'light' THEN ds.value END) as light,
-                MAX(CASE WHEN s.name = 'dust' THEN ds.value END) as dust,
-                ds.created_at as timestamp
+                ds.created_at,
+                s.name as sensor_name,
+                ds.value
             FROM data_sensors ds
             JOIN sensors s ON ds.sensor_id = s.id
-            CROSS JOIN (SELECT @row_number := ?) AS rn
-            ${whereClause}
-            GROUP BY ds.created_at
-            ORDER BY ds.${orderBy} ${orderDirection}
-            LIMIT ? OFFSET ?`,
-            [offset, ...queryParams, parseInt(limit), offset]
+            WHERE ds.sensor_id IN (?) AND ds.created_at IN (?)
+            ORDER BY ds.created_at ${orderDirection}`,
+            [sensorIds, timestampList]
         );
 
+        // Pivot data: group by timestamp và tạo object với các sensor values
+        const dataMap = {};
+        rows.forEach(row => {
+            const timestamp = row.created_at;
+            if (!dataMap[timestamp]) {
+                dataMap[timestamp] = {
+                    timestamp: timestamp,
+                    temperature: null,
+                    humidity: null,
+                    light: null,
+                    dust: null
+                };
+            }
+            
+            // Map sensor name to field
+            const sensorName = row.sensor_name.toLowerCase();
+            if (sensorName.includes('nhiệt độ') || sensorName.includes('temperature')) {
+                dataMap[timestamp].temperature = row.value;
+            } else if (sensorName.includes('độ ẩm') || sensorName.includes('humidity')) {
+                dataMap[timestamp].humidity = row.value;
+            } else if (sensorName.includes('ánh sáng') || sensorName.includes('light')) {
+                dataMap[timestamp].light = row.value;
+            } else if (sensorName.includes('bụi') || sensorName.includes('dust')) {
+                dataMap[timestamp].dust = row.value;
+            }
+        });
+
+        // Chuyển về array và thêm ID, format timestamp
+        const result = Object.values(dataMap)
+            .sort((a, b) => {
+                if (orderDirection === 'DESC') {
+                    return new Date(b.timestamp) - new Date(a.timestamp);
+                }
+                return new Date(a.timestamp) - new Date(b.timestamp);
+            })
+            .map((item, index) => ({
+                id: offset + index + 1,
+                temperature: item.temperature,
+                humidity: item.humidity,
+                light: item.light,
+                dust: item.dust,
+                timestamp: new Date(item.timestamp).toISOString().slice(0, 19).replace('T', ' ')
+            }));
+
         return {
-            data: rows,
+            data: result,
             pagination: {
                 page: parseInt(page),
                 limit: parseInt(limit),

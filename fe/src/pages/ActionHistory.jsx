@@ -1,9 +1,28 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import InformationLayout from '../components/InformationLayout.jsx';
-import { sampleActionHistoryData } from '../utils/sampleData.js';
 import MainLayout from '../components/MainLayout.jsx';
+import actionHistoryService from '../services/actionHistoryService.jsx';
+import {formatName} from '../utils/formatter.js';
 
 export default function ActionHistory(){
+    const [data, setData] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [pagination, setPagination] = useState({
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0
+    });
+    const [filters, setFilters] = useState({
+        search: '',
+        deviceId: '',
+        action: '',
+        status: '',
+        sortBy: 'timestamp',
+        sortOrder: 'desc'
+    });
+
     const filterOptions = [
         {type: 'all', displayText: 'Tất cả'},
         {type: 'name', displayText: 'Tên thiết bị'},
@@ -13,6 +32,58 @@ export default function ActionHistory(){
         {type: 'time', displayText: 'Thời gian'},
     ]
 
+    // Fetch data từ API
+    useEffect(() => {
+        fetchActionHistory();
+    }, [pagination.page, pagination.limit, filters]);
+
+    const fetchActionHistory = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            
+            const params = {
+                page: pagination.page,
+                limit: pagination.limit,
+                ...filters
+            };
+
+            const response = await actionHistoryService.getAll(params);
+            
+            if (response.success) {
+                setData(response.data.data || []);
+                setPagination(prev => ({
+                    ...prev,
+                    total: response.data.pagination.total,
+                    totalPages: response.data.pagination.totalPages
+                }));
+            }
+        } catch (err) {
+            setError(err.message || 'Có lỗi xảy ra khi tải dữ liệu');
+            console.error('Error fetching action history:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handlePageChange = (newPage) => {
+        setPagination(prev => ({ ...prev, page: newPage }));
+    };
+
+    const handleFilterChange = (newFilters) => {
+        setFilters(prev => ({ ...prev, ...newFilters }));
+        setPagination(prev => ({ ...prev, page: 1 })); // Reset về trang 1 khi filter
+    };
+
+    const handleSearch = (searchValue) => {
+        setFilters(prev => ({ ...prev, search: searchValue }));
+        setPagination(prev => ({ ...prev, page: 1 }));
+    };
+
+    const handleSort = (sortBy, sortOrder) => {
+        setFilters(prev => ({ ...prev, sortBy, sortOrder }));
+    };
+
     const columns = [
         { 
             key: 'id',
@@ -21,17 +92,17 @@ export default function ActionHistory(){
             cellClassName: 'font-semibold'
         },
         { 
-            key: 'deviceName', 
+            key: 'device_name', 
             header: 'Tên thiết bị', 
-            accessor: 'deviceName',
+            accessor: 'device_name',
             render: (value) => (
-                <span className="">{value}</span>
+                <span className="">{formatName(value)}</span>
             )
         },
         { 
-            key: 'action', 
+            key: 'value', 
             header: 'Hành động', 
-            accessor: 'action',
+            accessor: 'value',
             type: 'action',
             headerClassName: 'text-center',
             cellClassName: 'text-center'
@@ -49,8 +120,9 @@ export default function ActionHistory(){
             key: 'executor', 
             header: 'Thực thi bởi', 
             accessor: 'executor',
-            type: 'executor',
-            },
+            type: 'executor',   
+            
+        },
         { 
             key: 'timestamp', 
             header: 'Thời gian', 
@@ -67,7 +139,14 @@ export default function ActionHistory(){
             <InformationLayout
                 filterOptions={filterOptions}
                 columns={columns}
-                data={sampleActionHistoryData}
+                data={data}
+                loading={loading}
+                error={error}
+                pagination={pagination}
+                onPageChange={handlePageChange}
+                onFilterChange={handleFilterChange}
+                onSearch={handleSearch}
+                onSort={handleSort}
             />
         </MainLayout>
     )

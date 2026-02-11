@@ -25,7 +25,7 @@ class ActionHistoryController {
             res.json({
                 success: true,
                 message: 'Get all action history successfully',
-                ...result
+                data: result
             });
         } catch (error) {
             next(error);

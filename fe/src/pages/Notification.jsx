@@ -1,27 +1,106 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import MainLayout from '../components/MainLayout.jsx';
 import InformationLayout from '../components/InformationLayout.jsx';
-import { sampleNotificationData } from '../utils/sampleData.js';
+import alertService from '../services/alertService.jsx';
 
 export default function Notifications(){
+    const [data, setData] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [pagination, setPagination] = useState({
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0
+    });
+    const [filters, setFilters] = useState({
+        search: '',
+        sensorType: '',
+        severity: '',
+        status: '',
+        sortBy: 'timestamp',
+        sortOrder: 'desc'
+    });
+
     const filterOptions = [
         {type: 'all', displayText: 'Tất cả'},
         {type: 'name', displayText: 'Tên thiết bị'},
-        {type: 'action', displayText: 'Hành động'},
+        {type: 'severity', displayText: 'Độ nghiêm trọng'},
+        {type: 'status', displayText: 'Trạng thái'},
         {type: 'time', displayText: 'Thời gian'},
     ]
 
+    // Fetch data từ API
+    useEffect(() => {
+        fetchAlerts();
+    }, [pagination.page, pagination.limit, filters]);
+
+    const fetchAlerts = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            
+            const params = {
+                page: pagination.page,
+                limit: pagination.limit,
+                ...filters
+            };
+
+            const response = await alertService.getAll(params);
+            
+            if (response.success) {
+                setData(response.data.data || []);
+                setPagination(prev => ({
+                    ...prev,
+                    total: response.data.pagination.total,
+                    totalPages: response.data.pagination.totalPages
+                }));
+            }
+        } catch (err) {
+            setError(err.message || 'Có lỗi xảy ra khi tải dữ liệu');
+            console.error('Error fetching alerts:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handlePageChange = (newPage) => {
+        setPagination(prev => ({ ...prev, page: newPage }));
+    };
+
+    const handleFilterChange = (newFilters) => {
+        setFilters(prev => ({ ...prev, ...newFilters }));
+        setPagination(prev => ({ ...prev, page: 1 }));
+    };
+
+    const handleSearch = (searchValue) => {
+        setFilters(prev => ({ ...prev, search: searchValue }));
+        setPagination(prev => ({ ...prev, page: 1 }));
+    };
+
+    const handleSort = (sortBy, sortOrder) => {
+        setFilters(prev => ({ ...prev, sortBy, sortOrder }));
+    };
+
     const columns = [
         { 
-            key: 'critical',
-            header: 'Độ nghiêm trọng', 
-            accessor: 'critical',
-            type: 'critical'
+            key: 'id',
+            header: 'ID', 
+            accessor: 'id',
+            cellClassName: 'font-medium'
         },
         { 
-            key: 'deviceName', 
+            key: 'severity',
+            header: 'Độ nghiêm trọng', 
+            accessor: 'severity',
+            type: 'severity',
+            headerClassName: 'text-center',
+            cellClassName: 'text-center'
+        },
+        { 
+            key: 'device_name', 
             header: 'Tên thiết bị', 
-            accessor: 'deviceName',
+            accessor: 'device_name',
         },
         { 
             key: 'timestamp', 
@@ -29,13 +108,13 @@ export default function Notifications(){
             accessor: 'timestamp',
         },
         { 
-            key: 'description', 
+            key: 'notification', 
             header: 'Thông báo', 
-            accessor: 'description',
-            render: (value) => (
+            accessor: 'title',
+            render: (value, row) => (
                 <div className="flex flex-col gap-1">
-                    <div className="font-medium text-gray-800">{value.title}</div>
-                    <div className="text-gray-700">{value.description}</div>
+                    <div className="font-medium text-gray-800">{row.title}</div>
+                    <div className="text-gray-700">{row.description}</div>
                 </div>
             )
         },
@@ -46,7 +125,14 @@ export default function Notifications(){
             <InformationLayout
                 filterOptions={filterOptions}
                 columns={columns}
-                data={sampleNotificationData}
+                data={data}
+                loading={loading}
+                error={error}
+                pagination={pagination}
+                onPageChange={handlePageChange}
+                onFilterChange={handleFilterChange}
+                onSearch={handleSearch}
+                onSort={handleSort}
             />
         </MainLayout>
     )

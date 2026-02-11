@@ -34,20 +34,39 @@ class DataSensorController {
     // Data Sensor Page: Get history of 4 sensor types
     static async getSensorHistory(req, res, next) {
         try {
-            const { sensorType, startDate, endDate, limit = 50, offset = 0 } = req.query;
+            // Lấy 4 sensor IDs từ environment variables
+            const sensorIds = [
+                process.env.SENSOR_TEMPERATURE_ID,
+                process.env.SENSOR_HUMIDITY_ID,
+                process.env.SENSOR_LIGHT_ID,
+                process.env.SENSOR_DUST_ID
+            ].filter(id => id); // Filter out undefined IDs
+
+            if (sensorIds.length === 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'No sensor IDs configured in environment variables'
+                });
+            }
+
+            const options = {
+                page: parseInt(req.query.page) || 1,
+                limit: parseInt(req.query.limit) || 10,
+                search: req.query.search || '',
+                orderBy: req.query.sortBy || 'created_at',
+                orderDirection: req.query.sortOrder?.toUpperCase() || 'DESC',
+                filters: {
+                    startDate: req.query.startDate,
+                    endDate: req.query.endDate
+                }
+            };
             
-            const history = await DataSensor.getHistory({
-                sensorType,
-                startDate,
-                endDate,
-                limit: parseInt(limit),
-                offset: parseInt(offset)
-            });
+            const result = await DataSensor.getSensorHistory(sensorIds, options);
             
             res.json({
                 success: true,
                 message: 'Get sensor history successfully',
-                data: history
+                data: result
             });
         } catch (error) {
             next(error);

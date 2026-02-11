@@ -12,6 +12,14 @@ class Alert {
             filters = {}
         } = options;
 
+        // Map frontend field names to database column names
+        const orderByMap = {
+            'timestamp': 'created_at',
+            'created_at': 'created_at',
+            'severity': 'severity'
+        };
+        const dbOrderBy = orderByMap[orderBy] || 'created_at';
+
         const offset = (page - 1) * limit;
         let whereConditions = [];
         let queryParams = [];
@@ -75,14 +83,14 @@ class Alert {
                 a.id,
                 a.severity,
                 d.name as device_name,
-                a.created_at as timestamp,
+                DATE_FORMAT(a.created_at, '%Y-%m-%d %H:%i:%s') as timestamp,
                 a.title,
                 a.description
             FROM alerts a
             LEFT JOIN sensors s ON a.sensor_id = s.id
             LEFT JOIN devices d ON a.device_id = d.id
             ${whereClause}
-            ORDER BY a.${orderBy} ${orderDirection}
+            ORDER BY a.${dbOrderBy} ${orderDirection}
             LIMIT ? OFFSET ?`,
             [...queryParams, parseInt(limit), offset]
         );

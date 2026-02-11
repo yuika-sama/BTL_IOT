@@ -9,8 +9,8 @@ class AlertController {
                 page: parseInt(req.query.page) || 1,
                 limit: parseInt(req.query.limit) || 10,
                 search: req.query.search || '',
-                orderBy: req.query.orderBy || 'created_at',
-                orderDirection: req.query.orderDirection || 'DESC',
+                orderBy: req.query.sortBy || req.query.orderBy || 'created_at',
+                orderDirection: req.query.sortOrder?.toUpperCase() || req.query.orderDirection || 'DESC',
                 filters: {
                     severity: req.query.severity || undefined,
                     device_id: req.query.device_id || undefined,
@@ -25,7 +25,7 @@ class AlertController {
             res.json({
                 success: true,
                 message: 'Get all alerts successfully',
-                ...result
+                data: result
             });
         } catch (error) {
             next(error);

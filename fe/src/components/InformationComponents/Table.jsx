@@ -1,5 +1,6 @@
 import React from 'react'
-import {User, Bot, CheckCircle, XCircle, AlertCircle} from 'lucide-react';
+import {User, Bot, CheckCircle, XCircle, AlertCircle, Loader} from 'lucide-react';
+import {formatName} from '../../utils/formatter.js';
 
 export default function Table({ data = [], columns = [], }) {
     const getCritical = (level) => {
@@ -48,12 +49,13 @@ export default function Table({ data = [], columns = [], }) {
             'success': <CheckCircle size={20} className="text-green-500" />,
             'error': <XCircle size={20} className="text-red-500" />,
             'pending': <AlertCircle size={20} className="text-yellow-500" />,
+            'waiting': <Loader size={20} className="text-gray-500" />,
         }
         return icons[status.toLowerCase()] || icons['error'];
     }
 
     const getExecutorInfo = (executor) => {
-        const isAuto = executor.toLowerCase() === 'auto';
+        const isAuto = executor.toLowerCase() === 'auto' || executor.toLowerCase() === 'system' || executor.toLowerCase() === 'bot' || executor.toLowerCase() === 'automation';
         return (
             <div className='flex items-center gap-2 font-medium'>
                 {isAuto ? (
@@ -61,7 +63,7 @@ export default function Table({ data = [], columns = [], }) {
                 ) : (
                     <User size={16} className="text-gray-500" />
                 )}
-                <span className="text-gray-700">{executor}</span>
+                <span className="text-gray-700">{formatName(executor)}</span>
             </div>
         )
     }
@@ -83,6 +85,8 @@ export default function Table({ data = [], columns = [], }) {
             case 'executor':
                 return getExecutorInfo(value);
             case 'critical':
+                return getCritical(value);
+            case 'severity':
                 return getCritical(value);
             default:
                 return <span className={column.className || 'text-gray-900'}>{value}</span>;
