@@ -43,21 +43,35 @@ class MqttService {
 
     // Map sensor types sang sensor_id từ env
     const sensorMap = {
-      temperature: process.env.SENSOR_TEMPERATURE_ID,
-      humidity: process.env.SENSOR_HUMIDITY_ID,
-      light_raw: process.env.SENSOR_LIGHT_ID,
-      dust_ugm3: process.env.SENSOR_DUST_ID,
+      temperature: { id: process.env.SENSOR_TEMPERATURE_ID, type: 'temperature', unit: '°C' },
+      humidity: { id: process.env.SENSOR_HUMIDITY_ID, type: 'humidity', unit: '%' },
+      light_raw: { id: process.env.SENSOR_LIGHT_ID, type: 'light', unit: 'lux' },
+      dust_ugm3: { id: process.env.SENSOR_DUST_ID, type: 'dust', unit: 'PM2.5' },
     };
 
     const dataToSave = [];
+    const timestamp = new Date();
 
-    for (const [type, value] of Object.entries(sensors)) {
-      const sensor_id = sensorMap[type];
-      if (sensor_id && value !== null && value !== undefined) {
+    for (const [sensorKey, value] of Object.entries(sensors)) {
+      const sensorInfo = sensorMap[sensorKey];
+      if (sensorInfo?.id && value !== null && value !== undefined) {
+        const parsedValue = parseFloat(value);
+        
+        // Lưu vào DB
         dataToSave.push({
-          sensor_id,
-          value: parseFloat(value),
-          timestamp: new Date(),
+          sensor_id: sensorInfo.id,
+          value: parsedValue,
+          timestamp,
+        });
+
+        // Broadcast từng sensor riêng lẻ qua Socket (theo format frontend mong đợi)
+        SocketService.broadcastSensorData({
+          sensor_id: sensorInfo.id,
+          device_id,
+          type: sensorInfo.type,
+          value: parsedValue,
+          unit: sensorInfo.unit,
+          timestamp
         });
       }
     }
@@ -67,16 +81,8 @@ class MqttService {
       for (const data of dataToSave) {
         await DataSensorModel.create(data);
       }
-      console.log('💾 Saved', dataToSave.length, 'records');
+      console.log('💾 Saved', dataToSave.length, 'records to DB');
     }
-
-    // Broadcast qua Socket
-    SocketService.broadcastSensorData({
-      device_id,
-      sensors,
-      leds,
-      timestamp: new Date(),
-    });
 
     // Kiểm tra threshold & tạo alert
     await AlertService.checkThresholds(dataToSave);

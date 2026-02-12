@@ -18,15 +18,28 @@ const deviceService = {
   /**
    * Toggle trạng thái thiết bị (ON/OFF)
    * @param {string} deviceId - ID của thiết bị
-   * @param {string} status - Trạng thái mới ('ON' hoặc 'OFF')
    * @returns {Promise} Kết quả toggle
    */
-  toggleDeviceStatus: async (deviceId, status) => {
+  toggleStatus: async (deviceId) => {
     try {
-      const response = await baseApi.patch(`/devices/${deviceId}/toggle`, { status });
+      const response = await baseApi.patch(`/devices/${deviceId}/toggle`);
       return response;
     } catch (error) {
       console.error(`Error toggling device ${deviceId}:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * Lấy thông tin một device theo ID
+   * @param {String} deviceId - ID của device
+   */
+  getDeviceById: async (deviceId) => {
+    try {
+      const response = await baseApi.get(`/devices/${deviceId}`);
+      return response;
+    } catch (error) {
+      console.error('Error fetching device:', error);
       throw error;
     }
   },

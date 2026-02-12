@@ -7,10 +7,12 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "setup:sensors": "node src/scripts/setupSensors.js",
+    "setup:devices": "node src/scripts/setupDevices.js",
     "generate:data": "node src/scripts/generateSampleData.js",
     "test:sensors": "node src/scripts/testSensorData.js",
     "test:api": "node src/scripts/apiTest.js",
     "test:socket": "node src/scripts/socketTest.js",
+    "test:hardware": "node src/scripts/simulateHardware.js",
     "monitor": "node src/scripts/monitorSensorData.js"
   },
   "keywords": [],

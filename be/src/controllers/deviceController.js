@@ -1,5 +1,6 @@
 const Device = require('../models/deviceModel');
 const deviceService = require('../services/deviceService');
+const socketService = require('../services/socketService');
 
 class DeviceController {
     // Dashboard: Get all devices info
@@ -38,6 +39,13 @@ class DeviceController {
 
             // Get updated device
             const updatedDevice = await Device.getById(id);
+
+            // Broadcast status change via Socket
+            socketService.broadcastDeviceStatus({
+                device_id: updatedDevice.id,
+                status: newStatus,
+                timestamp: new Date()
+            });
 
             res.json({
                 success: true,

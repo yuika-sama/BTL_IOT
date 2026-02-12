@@ -4,6 +4,7 @@ import sensorService from './sensorService';
 import dataSensorService from './dataSensorService';
 import actionHistoryService from './actionHistoryService';
 import alertService from './alertService';
+import socketService from './socketService';
 
 export {
   deviceService,
@@ -11,6 +12,7 @@ export {
   dataSensorService,
   actionHistoryService,
   alertService,
+  socketService,
 };
 
 // Export default object chứa tất cả services
@@ -20,4 +22,5 @@ export default {
   dataSensor: dataSensorService,
   actionHistory: actionHistoryService,
   alert: alertService,
+  socket: socketService,
 };

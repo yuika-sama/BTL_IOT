@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Lightbulb, Loader2 } from 'lucide-react';
 
 export default function ToggleCard({ 
@@ -8,23 +8,23 @@ export default function ToggleCard({
 }) {
     const [state, setState] = useState(initialState); // "off", "waiting", "on"
 
+    // Sync state khi initialState thay đổi (update từ socket)
+    useEffect(() => {
+        setState(initialState);
+    }, [initialState]);
+
     const handleToggle = async () => {
         if (state === "waiting") return; // Không cho toggle khi đang waiting
 
-        const newState = state === "on" ? "off" : "on";
         setState("waiting");
 
         try {
             if (onToggle) {
-                await onToggle(newState);
+                await onToggle();
             }
-            // Simulate API call delay
-            setTimeout(() => {
-                setState(newState);
-            }, 1500);
         } catch (error) {
-            setState(state); // Revert về state cũ nếu có lỗi
-            throw error;
+            console.error('Toggle error:', error);
+            // State sẽ được revert thông qua initialState từ parent
         }
     };
 
