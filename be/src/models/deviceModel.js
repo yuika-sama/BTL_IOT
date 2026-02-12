@@ -17,8 +17,8 @@ class Device {
         let queryParams = []
 
         if (search) {
-            whereConditions.push('(d.name LIKE ? OR d.type LIKE ? or d.id LIKE ?)')
-            queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`)
+            whereConditions.push('(d.name LIKE ? or d.id LIKE ?)')
+            queryParams.push(`%${search}%`, `%${search}%`)
         }
 
         if (filter.status !== undefined) {
@@ -29,11 +29,6 @@ class Device {
         if (filter.is_connected !== undefined) {
             whereConditions.push('d.is_connected = ?')
             queryParams.push(filter.is_connected)
-        }
-
-        if (filter.type !== undefined) {
-            whereConditions.push('d.type = ?')
-            queryParams.push(filter.type)
         }
 
         const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : ''
@@ -70,27 +65,23 @@ class Device {
         return rows[0];
     }
 
-    static async create(name, type, state){
+    static async create(name, state){
         const id = uuidv4();
         const [result] = await db.execute(
-            'INSERT INTO devices (id, name, type, status, is_connected) VALUES (?, ?, ?, ?, ?)',
-            [id, name, type, state, false]
+            'INSERT INTO devices (id, name, status, is_connected) VALUES (?, ?, ?, ?)',
+            [id, name, state, false]
         );
         return this.getById(id);
     }
 
     static async update(id, deviceData){
-        const {name, type, status, is_connected} = deviceData;
+        const {name, status, is_connected} = deviceData;
         const update = []
         const values = []
 
         if (name !== undefined) {
             update.push('name = ?');
             values.push(name);
-        }
-        if (type !== undefined) {
-            update.push('type = ?');
-            values.push(type);
         }
         if (status !== undefined) {
             update.push('status = ?');

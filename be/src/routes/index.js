@@ -6,6 +6,7 @@ const sensorRoutes = require('./sensorRoutes');
 const dataSensorRoutes = require('./dataSensorRoutes');
 const actionHistoryRoutes = require('./actionHistoryRoutes');
 const alertRoutes = require('./alertRoutes');
+const testRoutes = require('./testRoutes');
 
 // API Routes
 router.use('/devices', deviceRoutes);
@@ -13,6 +14,7 @@ router.use('/sensors', sensorRoutes);
 router.use('/data-sensors', dataSensorRoutes);
 router.use('/action-history', actionHistoryRoutes);
 router.use('/alerts', alertRoutes);
+router.use('/test', testRoutes);
 
 // API Info
 router.get('/', (req, res) => {
@@ -25,7 +27,8 @@ router.get('/', (req, res) => {
       sensors: '/api/sensors',
       dataSensors: '/api/data-sensors',
       actionHistory: '/api/action-history',
-      alerts: '/api/alerts'
+      alerts: '/api/alerts',
+      test: '/api/test'
     }
   });
 });

@@ -115,7 +115,7 @@ class ActionHistory {
 
     static async getById(id) {
         const [rows] = await db.query(
-            `SELECT ah.*, d.name as device_name, d.type as device_type
+            `SELECT ah.*, d.name as device_name
             FROM action_history ah
             LEFT JOIN devices d ON ah.device_id = d.id
             WHERE ah.id = ?`,

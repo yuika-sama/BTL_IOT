@@ -16,7 +16,7 @@ export default function AppRoutes() {
             <Route path="/*" element={<NotFound />} />
             <Route path="/data-sensor" element={<DataSensor />} />
             <Route path="/notifications" element={<Notification />} />
-            <Route path="/profile" element={<Profile />} />
+            <Route path="/profile" element={<Profile />} />   
             <Route path="/action-history" element={<ActionHistory />} />
         </Routes>
     </Router>

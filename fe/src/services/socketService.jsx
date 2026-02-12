@@ -17,17 +17,24 @@ class SocketService {
       return this.socket;
     }
 
+    // Clean up old socket if exists
+    if (this.socket) {
+      this.socket.removeAllListeners();
+      this.socket.close();
+    }
+
     this.socket = io(serverUrl, {
-      transports: ['websocket', 'polling'],
+      transports: ['websocket'],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
-      reconnectionAttempts: 10,
-      timeout: 20000,
+      reconnectionAttempts: 5,
+      timeout: 10000,
       autoConnect: true,
       forceNew: false,
-      upgrade: true,
-      rememberUpgrade: true
+      upgrade: false,
+      path: '/socket.io/',
+      withCredentials: false
     });
 
     this.setupDefaultListeners();
@@ -47,7 +54,11 @@ class SocketService {
     });
 
     this.socket.on('disconnect', (reason) => {
-      console.log('❌ Socket disconnected:', reason);
+      console.log('🔌 Socket disconnected:', reason);
+      if (reason === 'io server disconnect') {
+        // Server đã disconnect, cần reconnect manually
+        this.socket.connect();
+      }
     });
 
     this.socket.on('connect_error', (error) => {
@@ -59,7 +70,9 @@ class SocketService {
     });
 
     this.socket.on('reconnect_attempt', (attemptNumber) => {
-      console.log('🔄 Attempting to reconnect...', attemptNumber);
+      if (attemptNumber === 1) {
+        console.log('🔄 Attempting to reconnect...');
+      }
     });
 
     this.socket.on('reconnect_error', (error) => {

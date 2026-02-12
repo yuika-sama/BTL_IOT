@@ -111,16 +111,16 @@ class DeviceController {
     // Create new device (Admin only)
     static async create(req, res, next) {
         try {
-            const { name, type, status } = req.body;
+            const { name, status } = req.body;
 
-            if (!name || !type) {
+            if (!name) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Name and type are required'
+                    message: 'Name is required'
                 });
             }
 
-            const device = await Device.create(name, type, status || false);
+            const device = await Device.create(name, status || false);
 
             res.status(201).json({
                 success: true,

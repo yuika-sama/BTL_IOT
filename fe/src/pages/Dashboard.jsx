@@ -4,7 +4,7 @@ import InforCard from '../components/InforCard.jsx';
 import ToggleCard from '../components/ToggleCard.jsx';
 import Chart from '../components/Chart.jsx';
 import { useSocket } from '../hooks/useSocket.jsx';
-import { deviceService } from '../services';
+import { deviceService, dataSensorService } from '../services';
 
 export default function Dashboard() {
     // State cho sensor data realtime
@@ -24,17 +24,84 @@ export default function Dashboard() {
     // State cho devices
     const [devices, setDevices] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [chartDataLoaded, setChartDataLoaded] = useState(false);
 
     // Socket hook
     const { onSensorData, onDeviceStatus, isConnected } = useSocket();
 
-    // Fetch danh sách devices khi mount
+    // Fetch danh sách devices và dữ liệu ban đầu cho biểu đồ khi mount
     useEffect(() => {
         fetchDevices();
+        fetchInitialChartData();
     }, []);
+
+    // Fetch dữ liệu ban đầu cho biểu đồ
+    const fetchInitialChartData = async () => {
+        try {
+            console.log('📊 Fetching initial chart data...');
+            const response = await dataSensorService.getInitialChartData({ limit: 20 });
+            
+            console.log('📊 API Response:', response);
+            
+            // baseApi interceptor đã unwrap response.data, nên response là { success, data }
+            if (response && response.success) {
+                const { temperature, humidity, light, dust } = response.data;
+                
+                console.log('📊 Chart data received:', {
+                    temperature: temperature?.length || 0,
+                    humidity: humidity?.length || 0,
+                    light: light?.length || 0,
+                    dust: dust?.length || 0
+                });
+                
+                // Format data cho chart (đã sorted từ cũ đến mới)
+                setTemperatureData(temperature || []);
+                setHumidityData(humidity || []);
+                setLightData(light || []);
+                setDustData(dust || []);
+                
+                // Set giá trị hiện tại từ điểm dữ liệu mới nhất
+                if (temperature?.length > 0) {
+                    setSensorData(prev => ({ 
+                        ...prev, 
+                        temperature: temperature[temperature.length - 1].value 
+                    }));
+                }
+                if (humidity?.length > 0) {
+                    setSensorData(prev => ({ 
+                        ...prev, 
+                        humidity: humidity[humidity.length - 1].value 
+                    }));
+                }
+                if (light?.length > 0) {
+                    setSensorData(prev => ({ 
+                        ...prev, 
+                        light: light[light.length - 1].value 
+                    }));
+                }
+                if (dust?.length > 0) {
+                    setSensorData(prev => ({ 
+                        ...prev, 
+                        dust: dust[dust.length - 1].value 
+                    }));
+                }
+                
+                setChartDataLoaded(true);
+                console.log('✅ Initial chart data loaded successfully');
+            } else {
+                console.warn('⚠️ Response data structure unexpected:', response);
+                setChartDataLoaded(true);
+            }
+        } catch (error) {
+            console.error('❌ Error fetching initial chart data:', error);
+            setChartDataLoaded(true); // Still mark as loaded to continue
+        }
+    };
 
     // Lắng nghe sensor data từ socket
     useEffect(() => {
+        if (!chartDataLoaded) return; // Đợi load dữ liệu ban đầu xong
+        
         const unsubscribe = onSensorData((data) => {
             console.log('📊 Received sensor data:', data);
             
@@ -43,16 +110,17 @@ export default function Dashboard() {
                 setSensorData(prev => ({ ...prev, temperature: data.value }));
                 setTemperatureData(prev => {
                     const newData = [...prev, { 
-                        time: new Date(data.timestamp).toLocaleTimeString(), 
+                        timestamp: data.timestamp, 
                         value: data.value 
                     }];
+                    // Giữ 20 điểm gần nhất, dữ liệu mới thêm vào cuối
                     return newData.slice(-20);
                 });
             } else if (data.type === 'humidity') {
                 setSensorData(prev => ({ ...prev, humidity: data.value }));
                 setHumidityData(prev => {
                     const newData = [...prev, { 
-                        time: new Date(data.timestamp).toLocaleTimeString(), 
+                        timestamp: data.timestamp, 
                         value: data.value 
                     }];
                     return newData.slice(-20);
@@ -61,7 +129,7 @@ export default function Dashboard() {
                 setSensorData(prev => ({ ...prev, light: data.value }));
                 setLightData(prev => {
                     const newData = [...prev, { 
-                        time: new Date(data.timestamp).toLocaleTimeString(), 
+                        timestamp: data.timestamp, 
                         value: data.value 
                     }];
                     return newData.slice(-20);
@@ -70,7 +138,7 @@ export default function Dashboard() {
                 setSensorData(prev => ({ ...prev, dust: data.value }));
                 setDustData(prev => {
                     const newData = [...prev, { 
-                        time: new Date(data.timestamp).toLocaleTimeString(), 
+                        timestamp: data.timestamp, 
                         value: data.value 
                     }];
                     return newData.slice(-20);
@@ -79,7 +147,7 @@ export default function Dashboard() {
         });
 
         return unsubscribe;
-    }, [onSensorData]);
+    }, [onSensorData, chartDataLoaded]);
 
     // Lắng nghe device status từ socket
     useEffect(() => {

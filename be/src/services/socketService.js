@@ -13,12 +13,13 @@ class SocketService {
         credentials: true,
         allowedHeaders: ['Content-Type', 'Authorization']
       },
-      transports: ['websocket', 'polling'],
+      transports: ['websocket'],
       pingTimeout: 60000,
       pingInterval: 25000,
-      upgradeTimeout: 30000,
       maxHttpBufferSize: 1e6,
-      allowEIO3: true
+      allowEIO3: true,
+      serveClient: false,
+      path: '/socket.io/'
     });
 
     this.io.on('connection', (socket) => {

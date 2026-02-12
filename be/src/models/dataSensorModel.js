@@ -431,6 +431,22 @@ class DataSensor{
         );
         return rows[0];
     }
+
+    // Get latest N data points for a sensor (for initial chart data)
+    static async getLatestDataBySensorId(sensorId, limit = 20) {
+        const [rows] = await db.query(
+            `SELECT 
+                value,
+                created_at as timestamp
+            FROM data_sensors
+            WHERE sensor_id = ?
+            ORDER BY created_at DESC
+            LIMIT ?`,
+            [sensorId, limit]
+        );
+        // Reverse to get oldest first (for chart display)
+        return rows.reverse();
+    }
 }
 
 module.exports = DataSensor;

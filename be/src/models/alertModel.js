@@ -110,8 +110,7 @@ class Alert {
         const [rows] = await db.query(
             `SELECT a.*, 
                 s.name as sensor_name, 
-                d.name as device_name,
-                d.type as device_type
+                d.name as device_name
             FROM alerts a
             LEFT JOIN sensors s ON a.sensor_id = s.id
             LEFT JOIN devices d ON a.device_id = d.id

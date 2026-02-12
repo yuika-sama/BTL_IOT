@@ -19,18 +19,56 @@ export default function Chart({
     title = 'Ánh sáng & bụi mịn',
     subtitle = 'Light Intensity & Dust trends'
 }) {
+    // Validate và ensure data is array
+    const validData1 = Array.isArray(data1) ? data1 : [];
+    const validData2 = Array.isArray(data2) ? data2 : [];
+
     // Merge 2 data arrays theo timestamp
-    const mergedData = data1.map((item1, index) => {
-        const item2 = data2[index] || {};
-        return {
-            timestamp: new Date(item1.timestamp).toLocaleTimeString('vi-VN', { 
-                hour: '2-digit', 
-                minute: '2-digit' 
-            }),
-            value1: item1.value,
-            value2: item2.value || 0
-        };
-    });
+    let mergedData = [];
+    
+    try {
+        mergedData = validData1.length > 0 
+            ? validData1.map((item1, index) => {
+                const item2 = validData2[index] || {};
+                
+                // Validate item1 has required fields
+                if (!item1 || typeof item1.value === 'undefined' || !item1.timestamp) {
+                    console.warn('Invalid data item:', item1);
+                    return null;
+                }
+                
+                return {
+                    timestamp: item1.timestamp,
+                    displayTime: new Date(item1.timestamp).toLocaleTimeString('vi-VN', { 
+                        hour: '2-digit', 
+                        minute: '2-digit',
+                        second: '2-digit'
+                    }),
+                    value1: parseFloat(item1.value) || 0,
+                    value2: parseFloat(item2.value) || 0
+                };
+            }).filter(item => item !== null) // Remove invalid items
+            : [];
+    } catch (error) {
+        console.error('Error merging chart data:', error);
+        mergedData = [];
+    }
+
+    // Show message if no data
+    if (mergedData.length === 0) {
+        return (
+            <div className="bg-white rounded-3xl p-6 shadow-lg">
+                <div className="mb-6">
+                    <h3 className="text-xl font-bold text-gray-900">{title}</h3>
+                    <p className="text-sm text-gray-500">{subtitle}</p>
+                </div>
+                <CustomLegend color1={color1} color2={color2} label1={label1} label2={label2} />
+                <div className="h-[225px] flex items-center justify-center text-gray-400">
+                    Đang tải dữ liệu...
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="bg-white rounded-3xl p-6 shadow-lg">
@@ -56,7 +94,7 @@ export default function Chart({
                     />
                     
                     <XAxis 
-                        dataKey="timestamp"
+                        dataKey="displayTime"
                         axisLine={false}
                         tickLine={false}
                         tick={{ fill: '#9ca3af', fontSize: 12 }}
@@ -105,6 +143,9 @@ export default function Chart({
                         strokeWidth={3}
                         dot={{ fill: color1, r: 4 }}
                         activeDot={{ r: 6 }}
+                        isAnimationActive={true}
+                        animationDuration={800}
+                        animationEasing="ease-in-out"
                     />
                     
                     {/* Line for data2 */}
@@ -116,6 +157,9 @@ export default function Chart({
                         strokeWidth={2}
                         strokeDasharray="5 5"
                         dot={false}
+                        isAnimationActive={true}
+                        animationDuration={800}
+                        animationEasing="ease-in-out"
                     />
                 </LineChart>
             </ResponsiveContainer>

@@ -42,6 +42,22 @@ const dataSensorService = {
       throw error;
     }
   },
+
+  /**
+   * Lấy dữ liệu ban đầu cho biểu đồ của tất cả 4 cảm biến
+   * @param {Object} params - Tham số query
+   * @param {number} params.limit - Số lượng điểm dữ liệu ban đầu (mặc định 20)
+   * @returns {Promise} Dữ liệu ban đầu cho 4 sensors
+   */
+  getInitialChartData: async (params = {}) => {
+    try {
+      const response = await baseApi.get('/data-sensors/initial-chart-data', { params });
+      return response;
+    } catch (error) {
+      console.error('Error fetching initial chart data:', error);
+      throw error;
+    }
+  },
 };
 
 export default dataSensorService;

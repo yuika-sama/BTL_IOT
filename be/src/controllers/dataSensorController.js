@@ -90,6 +90,67 @@ class DataSensorController {
         }
     }
 
+    // Get initial chart data for all 4 sensors
+    static async getInitialChartData(req, res, next) {
+        try {
+            const { limit = 20 } = req.query;
+            
+            // Lấy 4 sensor IDs từ environment variables
+            const sensorIds = {
+                temperature: process.env.SENSOR_TEMPERATURE_ID,
+                humidity: process.env.SENSOR_HUMIDITY_ID,
+                light: process.env.SENSOR_LIGHT_ID,
+                dust: process.env.SENSOR_DUST_ID
+            };
+
+            // Validate sensor IDs
+            const missingSensors = [];
+            Object.entries(sensorIds).forEach(([key, value]) => {
+                if (!value) missingSensors.push(key);
+            });
+
+            if (missingSensors.length > 0) {
+                console.warn('⚠️ Missing sensor IDs in .env:', missingSensors);
+            }
+
+            // Lấy dữ liệu cho từng sensor (chỉ nếu có ID)
+            const [temperatureData, humidityData, lightData, dustData] = await Promise.all([
+                sensorIds.temperature 
+                    ? DataSensor.getLatestDataBySensorId(sensorIds.temperature, parseInt(limit))
+                    : Promise.resolve([]),
+                sensorIds.humidity 
+                    ? DataSensor.getLatestDataBySensorId(sensorIds.humidity, parseInt(limit))
+                    : Promise.resolve([]),
+                sensorIds.light 
+                    ? DataSensor.getLatestDataBySensorId(sensorIds.light, parseInt(limit))
+                    : Promise.resolve([]),
+                sensorIds.dust 
+                    ? DataSensor.getLatestDataBySensorId(sensorIds.dust, parseInt(limit))
+                    : Promise.resolve([])
+            ]);
+
+            console.log('📊 Initial chart data:', {
+                temperature: temperatureData?.length || 0,
+                humidity: humidityData?.length || 0,
+                light: lightData?.length || 0,
+                dust: dustData?.length || 0
+            });
+
+            res.json({
+                success: true,
+                data: {
+                    temperature: temperatureData || [],
+                    humidity: humidityData || [],
+                    light: lightData || [],
+                    dust: dustData || []
+                }
+            });
+        } catch (error) {
+            console.error('❌ Error in getInitialChartData:', error);
+            next(error);
+        }
+    }
+
     // Get sensor data by ID
     static async getById(req, res, next) {
         try {
