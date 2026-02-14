@@ -78,12 +78,13 @@ class SocketService {
 
   /**
    * Broadcast device status change
-   * Format: { device_id, status, timestamp }
+   * Format: { device_id, value, status, timestamp }
    */
   broadcastDeviceStatus(status) {
     if (this.io) {
       this.io.emit('device_status', {
         device_id: status.device_id,
+        value: status.value,
         status: status.status,
         timestamp: status.timestamp || new Date()
       });
@@ -91,7 +92,7 @@ class SocketService {
       // Emit to specific device room
       this.io.to(`device_${status.device_id}`).emit('device_update', status);
       
-      console.log('📡 Broadcast device status:', status.device_id, status.status);
+      console.log('📡 Broadcast device status:', status.device_id, 'value:', status.value, 'status:', status.status);
     }
   }
 

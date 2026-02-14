@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutGrid, FileEdit, Rss, Bell, User } from 'lucide-react';
+import { LayoutGrid, FileEdit, Rss, Bell, User, Zap } from 'lucide-react';
 import {useNavigate, useLocation} from 'react-router-dom';
 
 export default function NavBar() {
@@ -10,6 +10,7 @@ export default function NavBar() {
         { icon: <LayoutGrid size={24} strokeWidth={1.5} />, alt: 'Dashboard', route: '/' },
         { icon: <FileEdit size={24} strokeWidth={1.5} />, alt: 'Action History', route: '/action-history' },
         { icon: <Rss size={24} strokeWidth={1.5} />, alt: 'Data Sensor', route: '/data-sensor' },
+        { icon: <Zap size={24} strokeWidth={1.5} />, alt: 'Automation', route: '/automation' },
         { icon: <Bell size={24} strokeWidth={1.5} />, alt: 'Notifications', route: '/notifications' },
         { icon: <User size={24} strokeWidth={1.5} />, alt: 'Profile', route: '/profile' },
     ]

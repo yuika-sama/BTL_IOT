@@ -65,23 +65,27 @@ class Device {
         return rows[0];
     }
 
-    static async create(name, state){
+    static async create(name, value = 0){
         const id = uuidv4();
         const [result] = await db.execute(
-            'INSERT INTO devices (id, name, status, is_connected) VALUES (?, ?, ?, ?)',
-            [id, name, state, false]
+            'INSERT INTO devices (id, name, value, status, is_connected) VALUES (?, ?, ?, ?, ?)',
+            [id, name, value, 'success', false]
         );
         return this.getById(id);
     }
 
     static async update(id, deviceData){
-        const {name, status, is_connected} = deviceData;
+        const {name, value, status, is_connected, auto_toggle} = deviceData;
         const update = []
         const values = []
 
         if (name !== undefined) {
             update.push('name = ?');
             values.push(name);
+        }
+        if (value !== undefined) {
+            update.push('value = ?');
+            values.push(value);
         }
         if (status !== undefined) {
             update.push('status = ?');
@@ -90,6 +94,10 @@ class Device {
         if (is_connected !== undefined) {
             update.push('is_connected = ?');
             values.push(is_connected);
+        }
+        if (auto_toggle !== undefined) {
+            update.push('auto_toggle = ?');
+            values.push(auto_toggle);
         }
         if (update.length === 0) {
             throw new Error('No fields to update');
@@ -107,6 +115,16 @@ class Device {
 
     static async updateStatus(id, status){
         await db.execute('UPDATE devices SET status = ? WHERE id = ?', [status, id]);
+        return this.getById(id);
+    }
+
+    static async updateValue(id, value){
+        await db.execute('UPDATE devices SET value = ? WHERE id = ?', [value, id]);
+        return this.getById(id);
+    }
+
+    static async updateValueAndStatus(id, value, status){
+        await db.execute('UPDATE devices SET value = ?, status = ? WHERE id = ?', [value, status, id]);
         return this.getById(id);
     }
 
@@ -136,20 +154,92 @@ class Device {
         return rows[0];
     }
 
-    static async getAllDevicesInfo(){
-        const [rows] = await db.query(
-            `SELECT d.*, 
+    static async getAllDevicesInfo(connectedOnly = false){
+        let query = `SELECT d.*, 
             (SELECT COUNT(*) FROM sensors WHERE device_id = d.id) as sensor_count
-            FROM devices d
-            ORDER BY d.created_at DESC
-            `
-        );
+            FROM devices d`;
+        
+        if (connectedOnly) {
+            query += ' WHERE d.is_connected = 1';
+        }
+        
+        query += ' ORDER BY d.created_at DESC';
+        
+        const [rows] = await db.query(query);
         return rows;
     }
 
     static async findById(id){
         const [rows] = await db.execute('SELECT * FROM devices WHERE id = ?', [id]);
         return rows[0];
+    }
+
+    static async updateAutoToggle(id, autoToggle){
+        await db.execute('UPDATE devices SET auto_toggle = ? WHERE id = ?', [autoToggle, id]);
+        return this.getById(id);
+    }
+
+    static async getDevicesWithAutoToggle(){
+        const [rows] = await db.query(
+            `SELECT d.*, s.id as sensor_id, s.threshold_min, s.threshold_max, s.name as sensor_name
+            FROM devices d
+            LEFT JOIN sensors s ON s.device_id = d.id
+            WHERE d.auto_toggle = 1`
+        );
+        return rows;
+    }
+
+    // Set connection status for devices from ENV
+    static async setDevicesConnected(connected = true){
+        const deviceIds = [
+            process.env.DEVICE_TEMPERATURE_ID,
+            process.env.DEVICE_HUMIDITY_ID,
+            process.env.DEVICE_LIGHT_ID,
+            process.env.DEVICE_DUST_ID
+        ].filter(id => id); // Filter out undefined
+
+        if (deviceIds.length === 0) {
+            console.warn('⚠️ No device IDs found in environment variables');
+            return;
+        }
+
+        const placeholders = deviceIds.map(() => '?').join(',');
+        await db.query(
+            `UPDATE devices SET is_connected = ?, status = ? WHERE id IN (${placeholders})`,
+            [connected ? 1 : 0, 'success', ...deviceIds]
+        );
+        
+        console.log(`✅ Updated ${deviceIds.length} devices: is_connected = ${connected}, status = success`);
+    }
+
+    // Set all devices disconnected
+    static async setAllDevicesDisconnected(){
+        await db.query('UPDATE devices SET is_connected = 0, status = ?', ['success']);
+        console.log('✅ All devices set to disconnected with status success');
+    }
+
+    // Update device with command status (waiting/success/failed)
+    static async updateWithCommandStatus(id, data){
+        const {value, status} = data;
+        const update = [];
+        const values = [];
+
+        if (value !== undefined) {
+            update.push('value = ?');
+            values.push(value);
+        }
+        if (status !== undefined) {
+            update.push('status = ?');
+            values.push(status);
+        }
+
+        if (update.length === 0) {
+            return this.getById(id);
+        }
+
+        values.push(id);
+        await db.execute('UPDATE devices SET ' + update.join(', ') + ' WHERE id = ?', values);
+        return this.getById(id);
     }
 }
 

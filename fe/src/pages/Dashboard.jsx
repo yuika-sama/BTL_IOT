@@ -154,12 +154,23 @@ export default function Dashboard() {
         const unsubscribe = onDeviceStatus((statusUpdate) => {
             console.log('📡 Device status update:', statusUpdate);
             
-            // Update device status trong danh sách
-            setDevices(prev => prev.map(device => 
-                device.id === statusUpdate.device_id
-                    ? { ...device, status: statusUpdate.status }
-                    : device
-            ));
+            // Update device trong danh sách
+            setDevices(prev => prev.map(device => {
+                if (device.id === statusUpdate.device_id) {
+                    const updated = { 
+                        ...device, 
+                        value: statusUpdate.value !== undefined ? statusUpdate.value : device.value,
+                        status: statusUpdate.status !== undefined ? statusUpdate.status : device.status
+                    };
+                    console.log('🔄 Device updated:', {
+                        id: device.id,
+                        old: { value: device.value, status: device.status },
+                        new: { value: updated.value, status: updated.status }
+                    });
+                    return updated;
+                }
+                return device;
+            }));
         });
 
         return unsubscribe;
@@ -179,12 +190,12 @@ export default function Dashboard() {
     };
 
     // Handle toggle device
-    const handleToggleDevice = async (deviceId, currentStatus) => {
+    const handleToggleDevice = async (deviceId, currentValue, currentStatus) => {
         try {
-            // Optimistic update
+            // Optimistic update - set status to waiting
             setDevices(prev => prev.map(device => 
                 device.id === deviceId
-                    ? { ...device, status: 2 } // 2 = waiting
+                    ? { ...device, status: 'waiting' }
                     : device
             ));
 
@@ -199,18 +210,35 @@ export default function Dashboard() {
             // Revert về trạng thái cũ nếu lỗi
             setDevices(prev => prev.map(device => 
                 device.id === deviceId
-                    ? { ...device, status: currentStatus }
+                    ? { ...device, value: currentValue, status: 'failed' }
                     : device
             ));
         }
     };
 
-    // Map status number to string
-    const getDeviceState = (status) => {
-        if (status === 1) return 'on';
-        if (status === 0) return 'off';
-        return 'waiting';
+    // Map value to state string (for ToggleCard)
+    const getDeviceState = (value, status) => {
+        // Use Number() to avoid string vs number comparison issues
+        const numValue = Number(value);
+        const state = status === 'waiting' ? 'waiting' :
+                     numValue === 1 ? 'on' : 'off';
+        console.log('🔍 getDeviceState:', { value, numValue, status, result: state });
+        return state;
     };
+
+    // Get device display name
+    const getDeviceDisplayName = (deviceName) => {
+        const names = {
+            'dev_temp_led': 'Nhiệt độ',
+            'dev_hum_led': 'Độ ẩm',
+            'dev_ldr_led': 'Ánh sáng',
+            'dev_dust_led': 'Bụi mịn',
+        };
+        return names[deviceName] || deviceName;
+    };
+
+
+    // console.log('🔄 Dashboard rendered with devices:', devices);
 
     return (
         <MainLayout>
@@ -243,10 +271,10 @@ export default function Dashboard() {
                         <div className="grid grid-cols-2 gap-4">
                             {devices.map((device) => (
                                 <ToggleCard 
-                                    key={`${device.id}-${device.status}`}
-                                    deviceName={device.name} 
-                                    initialState={getDeviceState(device.status)}
-                                    onToggle={() => handleToggleDevice(device.id, device.status)}
+                                    key={device.id}
+                                    deviceName={getDeviceDisplayName(device.name)} 
+                                    initialState={getDeviceState(device.value, device.status)}
+                                    onToggle={() => handleToggleDevice(device.id, device.value, device.status)}
                                 />
                             ))}
                         </div>

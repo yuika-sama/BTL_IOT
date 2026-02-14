@@ -7,6 +7,7 @@ import DataSensor from "../pages/DataSensor";
 import Notification from "../pages/Notification";
 import Profile from "../pages/Profile";
 import NotFound from "../pages/NotFound";
+import Automation from "../pages/Automation";
 
 export default function AppRoutes() {
   return (
@@ -15,6 +16,7 @@ export default function AppRoutes() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/*" element={<NotFound />} />
             <Route path="/data-sensor" element={<DataSensor />} />
+            <Route path="/automation" element={<Automation />} />
             <Route path="/notifications" element={<Notification />} />
             <Route path="/profile" element={<Profile />} />   
             <Route path="/action-history" element={<ActionHistory />} />

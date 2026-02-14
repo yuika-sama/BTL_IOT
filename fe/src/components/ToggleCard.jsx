@@ -10,8 +10,13 @@ export default function ToggleCard({
 
     // Sync state khi initialState thay đổi (update từ socket)
     useEffect(() => {
+        console.log('🎴 ToggleCard state sync:', { 
+            deviceName, 
+            initialState,
+            currentState: state
+        });
         setState(initialState);
-    }, [initialState]);
+    }, [initialState, deviceName]);
 
     const handleToggle = async () => {
         if (state === "waiting") return; // Không cho toggle khi đang waiting

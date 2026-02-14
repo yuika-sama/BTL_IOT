@@ -1,12 +1,13 @@
 const Device = require('../models/deviceModel');
 const deviceService = require('../services/deviceService');
 const socketService = require('../services/socketService');
+const mqttService = require('../services/mqttService');
 
 class DeviceController {
-    // Dashboard: Get all devices info
+    // Dashboard: Get all devices info (only connected devices)
     static async getAllDevicesInfo(req, res, next) {
         try {
-            const devices = await Device.getAllDevicesInfo();
+            const devices = await Device.getAllDevicesInfo(true); // Only connected devices
             
             res.json({
                 success: true,
@@ -18,7 +19,7 @@ class DeviceController {
         }
     }
 
-    // Dashboard: Toggle device status (ON/OFF)
+    // Dashboard: Toggle device status (ON/OFF) - MANUAL MODE
     static async toggleStatus(req, res, next) {
         try {
             const { id } = req.params;
@@ -31,25 +32,132 @@ class DeviceController {
                 });
             }
 
-            // Toggle status: 1 (ON) <-> 0 (OFF)
-            const newStatus = device.status === 1 ? 0 : 1;
+            // Check if device is connected
+            if (!device.is_connected) {
+                return res.status(503).json({
+                    success: false,
+                    message: 'Device is not connected'
+                });
+            }
+
+            // Toggle value: 1 (ON) <-> 0 (OFF)
+            const newValue = device.value === 1 ? 0 : 1;
+            const previousValue = device.value;
             
-            // Update status
-            await Device.updateStatus(id, newStatus);
+            // Set status to WAITING
+            await Device.updateWithCommandStatus(id, { 
+                status: 'waiting'
+            });
+            
+            // Broadcast WAITING state to frontend
+            socketService.broadcastDeviceStatus({
+                device_id: id,
+                status: 'waiting',
+                value: previousValue,
+                timestamp: new Date()
+            });
+
+            // QUAN TRỌNG: Khi toggle thủ công, tắt auto_toggle
+            await Device.update(id, { auto_toggle: 0 });
+
+            // Gửi lệnh điều khiển xuống ESP32 qua MQTT với tracking
+            // Map device ID to LED key using ENV variables
+            const ledMapping = {
+                [process.env.DEVICE_TEMPERATURE_ID]: 'led_temp',
+                [process.env.DEVICE_HUMIDITY_ID]: 'led_hum',
+                [process.env.DEVICE_LIGHT_ID]: 'led_ldr',
+                [process.env.DEVICE_DUST_ID]: 'led_dust'
+            };
+
+            const ledKey = ledMapping[id];
+            if (!ledKey) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid device type or device not configured in environment'
+                });
+            }
+
+            try {
+                // Send command with tracking (will wait for confirmation from ESP32)
+                await mqttService.publishCommandWithTracking(
+                    'abcde1', 
+                    ledKey, 
+                    newValue, 
+                    id,
+                    10000 // 10 second timeout
+                );
+
+                // Response sent immediately after command is published
+                // Actual status update will come via MQTT confirmation
+                res.json({
+                    success: true,
+                    message: `Device command sent, waiting for confirmation...`,
+                    data: {
+                        id: id,
+                        status: 'waiting',
+                        value: previousValue,
+                        target_value: newValue
+                    }
+                });
+
+            } catch (error) {
+                console.error('❌ Failed to send command:', error);
+                
+                // Set status to FAILED
+                await Device.updateWithCommandStatus(id, { 
+                    status: 'failed'
+                });
+                
+                socketService.broadcastDeviceStatus({
+                    device_id: id,
+                    status: 'failed',
+                    value: previousValue,
+                    error: 'Command failed',
+                    timestamp: new Date()
+                });
+
+                return res.status(500).json({
+                    success: false,
+                    message: 'Failed to send command to device',
+                    error: error.message
+                });
+            }
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    // Toggle auto_toggle for device
+    static async toggleAutoMode(req, res, next) {
+        try {
+            const { id } = req.params;
+            
+            const device = await Device.getById(id);
+            if (!device) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Device not found'
+                });
+            }
+
+            // Toggle auto_toggle: 1 (AUTO) <-> 0 (MANUAL)
+            const newAutoToggle = device.auto_toggle === 1 ? 0 : 1;
+            
+            await Device.updateAutoToggle(id, newAutoToggle);
 
             // Get updated device
             const updatedDevice = await Device.getById(id);
 
-            // Broadcast status change via Socket
+            // Broadcast via Socket
             socketService.broadcastDeviceStatus({
                 device_id: updatedDevice.id,
-                status: newStatus,
+                auto_toggle: newAutoToggle === 1,
                 timestamp: new Date()
             });
 
             res.json({
                 success: true,
-                message: `Device status changed to ${newStatus === 1 ? 'ON' : 'OFF'}`,
+                message: `Device auto-toggle ${newAutoToggle === 1 ? 'ENABLED' : 'DISABLED'}`,
                 data: updatedDevice
             });
         } catch (error) {

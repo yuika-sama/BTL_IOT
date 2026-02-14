@@ -43,6 +43,15 @@ const deviceService = {
       throw error;
     }
   },
+  toggleAutoMode: async (deviceId) => {
+    try {      
+      const response = await baseApi.patch(`/devices/${deviceId}/auto-toggle`);
+      return response;
+    } catch (error) {
+      console.error(`Error toggling auto mode for device ${deviceId}:`, error);
+      throw error;
+    }
+  }
 };
 
 export default deviceService;

@@ -2,6 +2,7 @@ require('dotenv').config();
 const http = require('http');
 const app = require('./app');
 const { socketService } = require('./services');
+const Device = require('./models/deviceModel');
 
 const PORT = process.env.PORT || 3000;
 
@@ -13,10 +14,30 @@ socketService.initialize(server);
 // Start scheduled data cleanup (optional)
 // dataCleanupService.startScheduledCleanup();
 
+// Initialize devices as connected on server start
+const initializeDevices = async () => {
+  try {
+    console.log('🔌 Initializing devices connection status...');
+    await Device.setDevicesConnected(true);
+    console.log('✅ Devices initialized as connected');
+  } catch (error) {
+    console.error('❌ Error initializing devices:', error);
+  }
+};
+
 // Graceful shutdown
-const gracefulShutdown = () => {
+const gracefulShutdown = async () => {
   console.log('\n👋 Shutting down gracefully...');
   
+  try {
+    // Set all devices as disconnected
+    console.log('📡 Updating devices to disconnected...');
+    await Device.setAllDevicesDisconnected();
+    console.log('✅ Devices set to disconnected');
+  } catch (error) {
+    console.error('❌ Error updating device status:', error);
+  }
+
   server.close(() => {
     console.log('✅ HTTP server closed');
     
@@ -45,7 +66,7 @@ process.on('uncaughtException', (error) => {
 });
 
 // Start server
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log('=================================');
   console.log('🚀 IoT Backend Server Started');
   console.log('=================================');
@@ -55,4 +76,7 @@ server.listen(PORT, () => {
   console.log(`💾 Database: ${process.env.DB_NAME}`);
   console.log(`📨 MQTT Broker: ${process.env.MQTT_BROKER}`);
   console.log('=================================');
+  
+  // Initialize devices after server starts
+  await initializeDevices();
 });
