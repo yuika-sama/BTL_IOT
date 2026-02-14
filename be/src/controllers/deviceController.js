@@ -1,4 +1,5 @@
 const Device = require('../models/deviceModel');
+const ActionHistory = require('../models/actionHistoryModel');
 const deviceService = require('../services/deviceService');
 const socketService = require('../services/socketService');
 const mqttService = require('../services/mqttService');
@@ -21,6 +22,8 @@ class DeviceController {
 
     // Dashboard: Toggle device status (ON/OFF) - MANUAL MODE
     static async toggleStatus(req, res, next) {
+        let actionHistory = null;
+        
         try {
             const { id } = req.params;
             
@@ -43,6 +46,14 @@ class DeviceController {
             // Toggle value: 1 (ON) <-> 0 (OFF)
             const newValue = device.value === 1 ? 0 : 1;
             const previousValue = device.value;
+            
+            // Create action history with 'waiting' status
+            actionHistory = await ActionHistory.create({
+                device_id: id,
+                command: newValue === 1 ? 'ON' : 'OFF',
+                executor: 'user',
+                status: 'waiting'
+            });
             
             // Set status to WAITING
             await Device.updateWithCommandStatus(id, { 
@@ -84,7 +95,8 @@ class DeviceController {
                     ledKey, 
                     newValue, 
                     id,
-                    10000 // 10 second timeout
+                    10000, // 10 second timeout
+                    actionHistory.id // Pass action_history_id for tracking
                 );
 
                 // Response sent immediately after command is published
@@ -102,6 +114,11 @@ class DeviceController {
 
             } catch (error) {
                 console.error('❌ Failed to send command:', error);
+                
+                // Update action history to failed
+                if (actionHistory && actionHistory.id) {
+                    await ActionHistory.updateStatus(actionHistory.id, 'failed');
+                }
                 
                 // Set status to FAILED
                 await Device.updateWithCommandStatus(id, { 
@@ -142,6 +159,14 @@ class DeviceController {
 
             // Toggle auto_toggle: 1 (AUTO) <-> 0 (MANUAL)
             const newAutoToggle = device.auto_toggle === 1 ? 0 : 1;
+            
+            // Create action history for auto mode toggle
+            await ActionHistory.create({
+                device_id: id,
+                command: newAutoToggle === 1 ? 'ENABLE_AUTO' : 'DISABLE_AUTO',
+                executor: 'user',
+                status: 'success'
+            });
             
             await Device.updateAutoToggle(id, newAutoToggle);
 

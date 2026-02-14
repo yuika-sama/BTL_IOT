@@ -80,6 +80,12 @@ class MqttService {
       if (this.pendingCommands.has(commandKey)) {
         const pendingCmd = this.pendingCommands.get(commandKey);
         
+        // Update action history to success
+        if (pendingCmd.actionHistoryId) {
+          const ActionHistory = require('../models/actionHistoryModel');
+          await ActionHistory.updateStatus(pendingCmd.actionHistoryId, 'success');
+        }
+        
         // Update value and status to success
         await DeviceModel.updateWithCommandStatus(deviceId, {
           value: value,
@@ -268,7 +274,7 @@ class MqttService {
   }
 
   // Publish command and track for confirmation
-  async publishCommandWithTracking(deviceId, ledKey, value, dbDeviceId, timeout = 10000) {
+  async publishCommandWithTracking(deviceId, ledKey, value, dbDeviceId, timeout = 10000, actionHistoryId = null) {
     return new Promise((resolve, reject) => {
       const command = { [ledKey]: value === 1 };
       const topic = `iot/device/${deviceId}/command`;
@@ -281,6 +287,12 @@ class MqttService {
       const timeoutId = setTimeout(async () => {
         console.error(`⏱️ Command timeout for ${ledKey}`);
         this.pendingCommands.delete(commandKey);
+        
+        // Update action history to failed
+        if (actionHistoryId) {
+          const ActionHistory = require('../models/actionHistoryModel');
+          await ActionHistory.updateStatus(actionHistoryId, 'failed');
+        }
         
         // Set status to failed (keep value unchanged)
         await DeviceModel.updateWithCommandStatus(dbDeviceId, {
@@ -306,6 +318,7 @@ class MqttService {
         ledKey,
         value,
         timeout: timeoutId,
+        actionHistoryId: actionHistoryId,
         timestamp: new Date()
       });
       

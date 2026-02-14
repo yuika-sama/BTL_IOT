@@ -4,16 +4,23 @@ import {formatName} from '../../utils/formatter.js';
 
 export default function Table({ data = [], columns = [], }) {
     const getCritical = (level) => {
+        if (!level) return null; // Handle null/undefined
+        
         const levels = {
-            'medium': {
+            'high': {
                 text: 'Critical', 
                 color: 'bg-red-50 text-red-600',
                 icon: <XCircle size={16} className="text-red-600" />
             },
-            'high': {
+            'medium': {
                 text: 'Warning', 
                 color: 'bg-orange-50 text-orange-600',
                 icon: <AlertCircle size={16} className="text-orange-600" />
+            },
+            'low': {
+                text: 'Info', 
+                color: 'bg-blue-50 text-blue-600',
+                icon: <AlertCircle size={16} className="text-blue-600" />
             },
             'normal': {
                 text: 'Info', 
@@ -21,7 +28,7 @@ export default function Table({ data = [], columns = [], }) {
                 icon: <AlertCircle size={16} className="text-blue-600" />
             },
         }
-        const badge = levels[level.toLowerCase()] || levels['info'];
+        const badge = levels[level.toLowerCase()] || levels['low'];
         return (
             <span className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium ${badge.color}`}>
                 {badge.icon}
@@ -31,6 +38,8 @@ export default function Table({ data = [], columns = [], }) {
     }
 
     const getActionBadge = (action) => {
+        if (!action) return null; // Handle null/undefined
+        
         const badges = {
             'on': {text: 'Bật', color: 'bg-green-100 text-green-800', icon: <CheckCircle size={16} />},
             'off': {text: 'Tắt', color: 'bg-gray-100 text-gray-500', icon: <XCircle size={16} />},
@@ -45,6 +54,8 @@ export default function Table({ data = [], columns = [], }) {
     }
 
     const getStatusIcon = (status) => {
+        if (!status) return null; // Handle null/undefined
+        
         const icons = {
             'success': <CheckCircle size={20} className="text-green-500" />,
             'error': <XCircle size={20} className="text-red-500" />,
@@ -55,6 +66,8 @@ export default function Table({ data = [], columns = [], }) {
     }
 
     const getExecutorInfo = (executor) => {
+        if (!executor) return null; // Handle null/undefined
+        
         const isAuto = executor.toLowerCase() === 'auto' || executor.toLowerCase() === 'system' || executor.toLowerCase() === 'bot' || executor.toLowerCase() === 'automation';
         return (
             <div className='flex items-center gap-2 font-medium'>
@@ -78,6 +91,8 @@ export default function Table({ data = [], columns = [], }) {
 
         // Xử lý các type đặc biệt
         switch (column.type) {
+            case 'device_name': 
+                return <span className="font-medium text-gray-900">{formatName(value)}</span>;
             case 'action':
                 return getActionBadge(value);
             case 'status':

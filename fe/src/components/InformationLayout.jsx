@@ -3,6 +3,7 @@ import TopBar from './InformationComponents/TopBar.jsx';
 import Table from './InformationComponents/Table.jsx';
 import Pagination from './InformationComponents/Pagination.jsx';
 
+
 export default function InformationLayout({
     filterOptions = [], 
     columns = [], 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import InformationLayout from '../components/InformationLayout.jsx';
 import MainLayout from '../components/MainLayout.jsx';
 import actionHistoryService from '../services/actionHistoryService.jsx';
-import {formatName} from '../utils/formatter.js';
+import {formatName, formatTime} from '../utils/formatter.js';
 
 export default function ActionHistory(){
     const [data, setData] = useState([]);
@@ -84,6 +84,36 @@ export default function ActionHistory(){
         setFilters(prev => ({ ...prev, sortBy, sortOrder }));
     };
 
+    console.log(data)
+
+    const renderAction = (value, row) => {
+        // Kiểm tra nếu là hành động auto_toggle
+        if (row.auto_toggle) {
+            const isEnable = row.auto_toggle === 'ENABLE_AUTO';
+            return (
+                <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${
+                    isEnable 
+                        ? 'bg-blue-100 text-blue-800' 
+                        : 'bg-gray-200 text-gray-700'
+                }`}>
+                    {isEnable ?  'Bật tự động' : 'Tắt tự động'}
+                </span>
+            );
+        }
+        
+        // Hành động bật/tắt thủ công bình thường
+        const isOn = value?.toLowerCase() === 'on';
+        return (
+            <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${
+                isOn 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-gray-100 text-gray-500'
+            }`}>
+                {isOn ? '✓ Bật' : '✕ Tắt'}
+            </span>
+        );
+    };
+
     const columns = [
         { 
             key: 'id',
@@ -103,10 +133,9 @@ export default function ActionHistory(){
             key: 'value', 
             header: 'Hành động', 
             accessor: 'value',
-            type: 'action',
+            render: renderAction,
             headerClassName: 'text-center',
             cellClassName: 'text-center'
-
         },
         { 
             key: 'status', 
@@ -128,7 +157,7 @@ export default function ActionHistory(){
             header: 'Thời gian', 
             accessor: 'timestamp',
             render: (value) => (
-                <span className="text-gray-600">{value}</span>
+                <span className="text-gray-600">{formatTime(value)}</span>
             ),
             sortable: true
         },

@@ -80,7 +80,11 @@ class ActionHistory {
                 ah.command as value,
                 ah.status,
                 ah.executor,
-                ah.created_at as timestamp
+                ah.created_at as timestamp,
+                CASE 
+                    WHEN ah.command IN ('ENABLE_AUTO', 'DISABLE_AUTO') THEN ah.command
+                    ELSE NULL
+                END as auto_toggle
             FROM action_history ah
             LEFT JOIN devices d ON ah.device_id = d.id
             ${whereClause}
