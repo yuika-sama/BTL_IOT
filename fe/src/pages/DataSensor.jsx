@@ -16,6 +16,7 @@ export default function DataSensor(){
     });
     const [filters, setFilters] = useState({
         search: '',
+        filterType: 'all',
         sensorType: '',
         sortBy: 'timestamp',
         sortOrder: 'desc'
@@ -44,7 +45,8 @@ export default function DataSensor(){
             const params = {
                 page: pagination.page,
                 limit: pagination.limit,
-                ...filters
+                ...filters,
+                filterType: filters.filterType === 'all' ? '' : filters.filterType
             };
 
             const response = await dataSensorService.getSensorHistory(params);
@@ -69,18 +71,26 @@ export default function DataSensor(){
         setPagination(prev => ({ ...prev, page: newPage }));
     };
 
-    const handleFilterChange = (newFilters) => {
-        setFilters(prev => ({ ...prev, ...newFilters }));
+    const handleFilterChange = (filterType) => {
+        setFilters(prev => ({ ...prev, filterType: filterType }));
+        console.log('Filter changed to:', filterType);
         setPagination(prev => ({ ...prev, page: 1 }));
     };
 
-    const handleSearch = (searchValue) => {
-        setFilters(prev => ({ ...prev, search: searchValue }));
+    const handleSearch = (searchValue, filterType) => {
+        setFilters(prev => ({ 
+            ...prev, 
+            search: searchValue,
+            filterType: filterType || prev.filterType
+        }));
         setPagination(prev => ({ ...prev, page: 1 }));
     };
 
-    const handleSort = (sortBy, sortOrder) => {
-        setFilters(prev => ({ ...prev, sortBy, sortOrder }));
+    const handleSort = (sortOrder) => {
+        setFilters(prev => ({ 
+            ...prev, 
+            sortOrder: sortOrder
+        }));
     };
 
     const columns = [
@@ -89,7 +99,7 @@ export default function DataSensor(){
         { key: 'humidity', header: 'Độ ẩm', accessor: 'humidity', render: (value) => (<span className="font-medium text-blue-400">{formatNumber(value)}%</span>)},
         { key: 'light', header: 'Ánh sáng', accessor: 'light', render: (value) => (<span className="font-medium text-yellow-500">{formatNumber(value)} Lux</span>)},
         { key: 'dust', header: 'Bụi mịn', accessor: 'dust', render: (value) => (<span className="font-medium text-gray-400">{formatNumber(value)    }µg/m³</span>)},
-        { key: 'timestamp', header: 'Thời gian', accessor: 'timestamp', cellClassName:'' },
+        { key: 'timestamp', header: 'Thời gian', accessor: 'timestamp', cellClassName:'', render: (value) => (<span className="text-sm text-gray-500">{new Date(value).toLocaleString()}</span>)},
     ]
     
     return(

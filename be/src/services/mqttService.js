@@ -1,6 +1,7 @@
 const mqttClient = require('../config/mqtt');
 const DataSensorModel = require('../models/dataSensorModel');
 const DeviceModel = require('../models/deviceModel');
+const ActionHistory = require('../models/actionHistoryModel');
 const AlertService = require('./alertService');
 const SocketService = require('./socketService');
 
@@ -226,6 +227,14 @@ class MqttService {
       const newValue = shouldBeOn ? 1 : 0;
       
       if (device.value !== newValue) {
+        // Tạo action history cho auto-control
+        await ActionHistory.create({
+          device_id: device.id,
+          command: newValue === 1 ? 'ON' : 'OFF',
+          executor: 'auto',
+          status: 'success'
+        });
+
         await DeviceModel.updateWithCommandStatus(device.id, {
           value: newValue,
           status: 'success'

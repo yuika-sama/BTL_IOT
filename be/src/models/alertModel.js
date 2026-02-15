@@ -7,9 +7,9 @@ class Alert {
             page = 1,
             limit = 10,
             search = '',
+            filterType = '',
             orderBy = 'created_at',
             orderDirection = 'DESC',
-            filters = {}
         } = options;
 
         // Map frontend field names to database column names
@@ -24,46 +24,24 @@ class Alert {
         let whereConditions = [];
         let queryParams = [];
 
-        // Search by exact time
+        // Search based on filterType
         if (search) {
-            const timeParts = search.split(':');
-            if (timeParts.length === 3) {
-                // Exact second: HH:MM:SS
-                whereConditions.push('TIME(a.created_at) = ?');
-                queryParams.push(search);
-            } else if (timeParts.length === 2) {
-                // Exact minute: HH:MM
-                whereConditions.push('DATE_FORMAT(a.created_at, "%H:%i") = ?');
-                queryParams.push(search);
-            } else if (timeParts.length === 1 && search.length <= 2) {
-                // Hour: HH
-                whereConditions.push('HOUR(a.created_at) = ?');
-                queryParams.push(parseInt(search));
+            if (filterType === 'name') {
+                whereConditions.push('d.name LIKE ?');
+                queryParams.push(`%${search}%`);
+            } else if (filterType === 'severity') {
+                whereConditions.push('a.severity LIKE ?');
+                queryParams.push(`%${search}%`);
+            } else if (filterType === 'time') {
+                // Format datetime to DD/MM/YYYY HH:MM:SS for search
+                whereConditions.push('DATE_FORMAT(a.created_at, "%d/%m/%Y %H:%i:%s") LIKE ?');
+                queryParams.push(`%${search}%`);
             } else {
-                // General search
-                whereConditions.push('(a.title LIKE ? OR a.description LIKE ? OR d.name LIKE ?)');
-                queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
+                // Search all fields including formatted time
+                whereConditions.push('(a.title LIKE ? OR a.description LIKE ? OR d.name LIKE ? OR DATE_FORMAT(a.created_at, "%d/%m/%Y %H:%i:%s") LIKE ?)');
+                queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
             }
         }
-
-        // Filters
-        if (filters.severity) {
-            whereConditions.push('a.severity = ?');
-            queryParams.push(filters.severity);
-        }
-        if (filters.device_id) {
-            whereConditions.push('a.device_id = ?');
-            queryParams.push(filters.device_id);
-        }
-        if (filters.sensor_id) {
-            whereConditions.push('a.sensor_id = ?');
-            queryParams.push(filters.sensor_id);
-        }
-        if (filters.startDate && filters.endDate) {
-            whereConditions.push('a.created_at BETWEEN ? AND ?');
-            queryParams.push(filters.startDate, filters.endDate);
-        }
-
         const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
 
         // Count total
@@ -83,7 +61,7 @@ class Alert {
                 a.id,
                 a.severity,
                 d.name as device_name,
-                DATE_FORMAT(a.created_at, '%Y-%m-%d %H:%i:%s') as timestamp,
+                a.created_at as timestamp,
                 a.title,
                 a.description
             FROM alerts a
@@ -110,7 +88,8 @@ class Alert {
         const [rows] = await db.query(
             `SELECT a.*, 
                 s.name as sensor_name, 
-                d.name as device_name
+                d.name as device_name,
+                DATE_ADD(a.created_at, INTERVAL 7 HOUR) as timestamp
             FROM alerts a
             LEFT JOIN sensors s ON a.sensor_id = s.id
             LEFT JOIN devices d ON a.device_id = d.id
@@ -122,7 +101,9 @@ class Alert {
 
     static async getByDeviceId(deviceId, limit = 50) {
         const [rows] = await db.query(
-            `SELECT a.*, s.name as sensor_name 
+            `SELECT a.*, 
+                s.name as sensor_name,
+                DATE_ADD(a.created_at, INTERVAL 7 HOUR) as timestamp
             FROM alerts a
             LEFT JOIN sensors s ON a.sensor_id = s.id
             WHERE a.device_id = ? 
@@ -135,7 +116,9 @@ class Alert {
 
     static async getBySensorId(sensorId, limit = 50) {
         const [rows] = await db.query(
-            `SELECT a.*, d.name as device_name 
+            `SELECT a.*, 
+                d.name as device_name,
+                DATE_ADD(a.created_at, INTERVAL 7 HOUR) as timestamp
             FROM alerts a
             LEFT JOIN devices d ON a.device_id = d.id
             WHERE a.sensor_id = ? 
@@ -164,7 +147,8 @@ class Alert {
         const [rows] = await db.query(
             `SELECT a.*, 
                 s.name as sensor_name, 
-                d.name as device_name
+                d.name as device_name,
+                DATE_ADD(a.created_at, INTERVAL 7 HOUR) as timestamp
             FROM alerts a
             LEFT JOIN sensors s ON a.sensor_id = s.id
             LEFT JOIN devices d ON a.device_id = d.id
@@ -205,7 +189,8 @@ class Alert {
         const [rows] = await db.query(
             `SELECT a.*, 
                 s.name as sensor_name, 
-                d.name as device_name
+                d.name as device_name,
+                DATE_ADD(a.created_at, INTERVAL 7 HOUR) as timestamp
             FROM alerts a
             LEFT JOIN sensors s ON a.sensor_id = s.id
             LEFT JOIN devices d ON a.device_id = d.id

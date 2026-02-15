@@ -22,6 +22,7 @@ export default function InformationLayout({
                 filterOptions={filterOptions} 
                 onSearch={onSearch}
                 onFilterChange={onFilterChange}
+                onSort={onSort}
             />
             <div>
                 {loading && (

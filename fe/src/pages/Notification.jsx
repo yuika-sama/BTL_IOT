@@ -15,6 +15,7 @@ export default function Notifications(){
     });
     const [filters, setFilters] = useState({
         search: '',
+        filterType: 'all',
         sensorType: '',
         severity: '',
         status: '',
@@ -43,7 +44,8 @@ export default function Notifications(){
             const params = {
                 page: pagination.page,
                 limit: pagination.limit,
-                ...filters
+                ...filters,
+                filterType: filters.filterType === 'all' ? '' : filters.filterType
             };
 
             const response = await alertService.getAll(params);
@@ -68,18 +70,26 @@ export default function Notifications(){
         setPagination(prev => ({ ...prev, page: newPage }));
     };
 
-    const handleFilterChange = (newFilters) => {
-        setFilters(prev => ({ ...prev, ...newFilters }));
+    const handleFilterChange = (filterType) => {
+        setFilters(prev => ({ ...prev, filterType: filterType }));
+        console.log('Filter changed to:', filterType);
         setPagination(prev => ({ ...prev, page: 1 }));
     };
 
-    const handleSearch = (searchValue) => {
-        setFilters(prev => ({ ...prev, search: searchValue }));
+    const handleSearch = (searchValue, filterType) => {
+        setFilters(prev => ({ 
+            ...prev, 
+            search: searchValue,
+            filterType: filterType || prev.filterType
+        }));
         setPagination(prev => ({ ...prev, page: 1 }));
     };
 
-    const handleSort = (sortBy, sortOrder) => {
-        setFilters(prev => ({ ...prev, sortBy, sortOrder }));
+    const handleSort = (sortOrder) => {
+        setFilters(prev => ({ 
+            ...prev, 
+            sortOrder: sortOrder
+        }));
     };
 
     const columns = [
@@ -87,7 +97,12 @@ export default function Notifications(){
             key: 'id',
             header: 'ID', 
             accessor: 'id',
-            cellClassName: 'font-medium'
+            cellClassName: 'font-medium',
+            render: (value, row) => {
+                const currentIndex = data.findIndex(item => item.id === row.id);
+                const stt = (pagination.page - 1) * pagination.limit + currentIndex + 1;
+                return (<span className="text-sm text-gray-500">{stt}</span>);
+            }
         },
         { 
             key: 'severity',
@@ -106,6 +121,7 @@ export default function Notifications(){
             key: 'timestamp', 
             header: 'Thời gian', 
             accessor: 'timestamp',
+            render: (value) => (<span className="text-sm text-gray-500">{new Date(value).toLocaleString()}</span>)
         },
         { 
             key: 'notification', 

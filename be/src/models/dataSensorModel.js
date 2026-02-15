@@ -14,7 +14,8 @@ class DataSensor{
 
     static async getLatestBySensor(sensorId) {
         const [rows] = await db.query(
-            `SELECT ds.id, ds.sensor_id, ds.value, ds.created_at as timestamp,
+            `SELECT ds.id, ds.sensor_id, ds.value, 
+                    DATE_ADD(ds.created_at, INTERVAL 7 HOUR) as timestamp,
                     s.name, s.unit 
              FROM data_sensors ds
              JOIN sensors s ON ds.sensor_id = s.id
@@ -28,7 +29,8 @@ class DataSensor{
 
     static async getHistory(filters = {}) {
         let query = `
-            SELECT ds.id, ds.sensor_id, ds.value, ds.created_at as timestamp,
+            SELECT ds.id, ds.sensor_id, ds.value, 
+                   DATE_ADD(ds.created_at, INTERVAL 7 HOUR) as timestamp,
                    s.name, s.unit, s.device_id
             FROM data_sensors ds
             JOIN sensors s ON ds.sensor_id = s.id
@@ -116,27 +118,10 @@ class DataSensor{
         let whereConditions = [];
         let queryParams = [];
 
-        // Search by exact time
+        // Search
         if (search) {
-            // Parse search to determine precision
-            const timeParts = search.split(':');
-            if (timeParts.length === 3) {
-                // Exact second: HH:MM:SS
-                whereConditions.push('TIME(ds.created_at) = ?');
-                queryParams.push(search);
-            } else if (timeParts.length === 2) {
-                // Exact minute: HH:MM
-                whereConditions.push('DATE_FORMAT(ds.created_at, "%H:%i") = ?');
-                queryParams.push(search);
-            } else if (timeParts.length === 1 && search.length <= 2) {
-                // Hour: HH
-                whereConditions.push('HOUR(ds.created_at) = ?');
-                queryParams.push(parseInt(search));
-            } else {
-                // General search for device name or sensor name
-                whereConditions.push('(d.name LIKE ? OR s.name LIKE ?)');
-                queryParams.push(`%${search}%`, `%${search}%`);
-            }
+            whereConditions.push('(d.name LIKE ? OR s.name LIKE ? OR DATE_FORMAT(ds.created_at, "%d/%m/%Y %H:%i:%s") LIKE ?)');
+            queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
         }
 
         // Filters
@@ -175,7 +160,7 @@ class DataSensor{
             `SELECT 
                 ds.id,
                 ds.value,
-                ds.created_at as timestamp,
+                DATE_SUB(ds.created_at, INTERVAL 7 HOUR) as timestamp_display,
                 s.name as sensor_name,
                 s.unit as sensor_unit,
                 d.name as device_name
@@ -205,9 +190,9 @@ class DataSensor{
             page = 1,
             limit = 10,
             search = '',
+            filterType = '',
             orderBy = 'created_at',
             orderDirection = 'DESC',
-            filters = {}
         } = options;
 
         // Map frontend field names to database column names
@@ -221,25 +206,20 @@ class DataSensor{
         let whereConditions = ['ds.sensor_id IN (?)'];
         let queryParams = [sensorIds];
 
-        // Search by exact time
+        // Search based on filterType
         if (search) {
-            const timeParts = search.split(':');
-            if (timeParts.length === 3) {
-                whereConditions.push('TIME(ds.created_at) = ?');
-                queryParams.push(search);
-            } else if (timeParts.length === 2) {
-                whereConditions.push('DATE_FORMAT(ds.created_at, "%H:%i") = ?');
-                queryParams.push(search);
-            } else if (timeParts.length === 1 && search.length <= 2) {
-                whereConditions.push('HOUR(ds.created_at) = ?');
-                queryParams.push(parseInt(search));
+            if (filterType === 'name') {
+                whereConditions.push('d.name LIKE ?');
+                queryParams.push(`%${search}%`);
+            } else if (filterType === 'time') {
+                // Format datetime to DD/MM/YYYY HH:MM:SS for search
+                whereConditions.push('DATE_FORMAT(ds.created_at, "%d/%m/%Y %H:%i:%s") LIKE ?');
+                queryParams.push(`%${search}%`);
+            } else {
+                // Search all fields including formatted time
+                whereConditions.push('(d.name LIKE ? OR DATE_FORMAT(ds.created_at, "%d/%m/%Y %H:%i:%s") LIKE ?)');
+                queryParams.push(`%${search}%`, `%${search}%`);
             }
-        }
-
-        // Filters
-        if (filters.startDate && filters.endDate) {
-            whereConditions.push('ds.created_at BETWEEN ? AND ?');
-            queryParams.push(filters.startDate, filters.endDate);
         }
 
         const whereClause = 'WHERE ' + whereConditions.join(' AND ');
@@ -248,6 +228,8 @@ class DataSensor{
         const [allTimestamps] = await db.query(
             `SELECT DISTINCT ds.created_at
              FROM data_sensors ds
+             JOIN sensors s ON ds.sensor_id = s.id
+             LEFT JOIN devices d ON s.device_id = d.id
              ${whereClause}
              ORDER BY ds.created_at ${orderDirection}`,
             queryParams
@@ -276,10 +258,13 @@ class DataSensor{
         const [rows] = await db.query(
             `SELECT 
                 ds.created_at,
+                ds.created_at as timestamp_display,
                 s.name as sensor_name,
-                ds.value
+                ds.value,
+                d.name as device_name
             FROM data_sensors ds
             JOIN sensors s ON ds.sensor_id = s.id
+            LEFT JOIN devices d ON s.device_id = d.id
             WHERE ds.sensor_id IN (?) AND ds.created_at IN (?)
             ORDER BY ds.created_at ${orderDirection}`,
             [sensorIds, timestampList]
@@ -291,7 +276,7 @@ class DataSensor{
             const timestamp = row.created_at;
             if (!dataMap[timestamp]) {
                 dataMap[timestamp] = {
-                    timestamp: timestamp,
+                    timestamp: row.timestamp_display,
                     temperature: null,
                     humidity: null,
                     light: null,
@@ -326,7 +311,7 @@ class DataSensor{
                 humidity: item.humidity,
                 light: item.light,
                 dust: item.dust,
-                timestamp: new Date(item.timestamp).toISOString().slice(0, 19).replace('T', ' ')
+                timestamp: item.timestamp
             }));
 
         return {
@@ -342,7 +327,11 @@ class DataSensor{
 
     static async getById(id){
         const [rows] = await db.query(
-            `SELECT ds.*, s.name as sensor_name, s.unit as sensor_unit, d.name as device_name 
+            `SELECT ds.*, 
+                s.name as sensor_name, 
+                s.unit as sensor_unit, 
+                d.name as device_name,
+                DATE_ADD(ds.created_at, INTERVAL 7 HOUR) as timestamp
             FROM data_sensors ds 
             LEFT JOIN sensors s ON ds.sensor_id = s.id 
             LEFT JOIN devices d ON s.device_id = d.id 
@@ -354,7 +343,11 @@ class DataSensor{
 
     static async getBySensorId(sensor_id){
         const [rows] = await db.query(
-            `SELECT * FROM data_sensors WHERE sensor_id = ? ORDER BY created_at DESC`,
+            `SELECT *, 
+                DATE_ADD(created_at, INTERVAL 7 HOUR) as timestamp 
+            FROM data_sensors 
+            WHERE sensor_id = ? 
+            ORDER BY created_at DESC`,
             [sensor_id]
         );
         return rows;
@@ -375,7 +368,9 @@ class DataSensor{
 
     static async getLatestBySensorId(sensor_id){
         const [rows] = await db.query(
-            `SELECT * FROM data_sensors 
+            `SELECT *, 
+                DATE_ADD(created_at, INTERVAL 7 HOUR) as timestamp 
+            FROM data_sensors 
             WHERE sensor_id = ? 
             ORDER BY created_at DESC 
             LIMIT 1`,
@@ -437,7 +432,7 @@ class DataSensor{
         const [rows] = await db.query(
             `SELECT 
                 value,
-                created_at as timestamp
+                DATE_ADD(created_at, INTERVAL 7 HOUR) as timestamp
             FROM data_sensors
             WHERE sensor_id = ?
             ORDER BY created_at DESC

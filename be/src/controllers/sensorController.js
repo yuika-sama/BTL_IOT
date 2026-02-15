@@ -41,14 +41,24 @@ class SensorController {
     // Get all sensors with pagination, search, filters (Admin only)
     static async getAll(req, res, next) {
         try {
+            // Map frontend field names to database column names
+            const orderByMap = {
+                'timestamp': 'created_at',
+                'created_at': 'created_at',
+                'name': 'name'
+            };
+            
+            const rawOrderBy = req.query.sortBy || req.query.orderBy || 'created_at';
+            const orderBy = orderByMap[rawOrderBy] || 'created_at';
+            
             const options = {
                 page: parseInt(req.query.page) || 1,
                 limit: parseInt(req.query.limit) || 10,
                 search: req.query.search || '',
-                orderBy: req.query.orderBy || 'created_at',
-                orderDirection: req.query.orderDirection || 'DESC',
+                orderBy: orderBy,
+                orderDirection: (req.query.sortOrder || req.query.orderDirection || 'desc').toUpperCase(),
                 filters: {
-                    device_id: req.query.device_id || undefined,
+                    device_id: req.query.deviceId || req.query.device_id || undefined,
                     name: req.query.name || undefined
                 }
             };

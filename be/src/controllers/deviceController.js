@@ -193,13 +193,24 @@ class DeviceController {
     // Get all devices with pagination, search, filters (Admin only)
     static async getAll(req, res, next) {
         try {
+            // Map frontend field names to database column names
+            const orderByMap = {
+                'timestamp': 'created_at',
+                'created_at': 'created_at',
+                'name': 'name',
+                'status': 'status'
+            };
+            
+            const rawOrderBy = req.query.sortBy || req.query.orderBy || 'created_at';
+            const orderBy = orderByMap[rawOrderBy] || 'created_at';
+            
             const options = {
                 page: parseInt(req.query.page) || 1,
                 limit: parseInt(req.query.limit) || 10,
                 search: req.query.search || '',
-                orderBy: req.query.orderBy || 'created_at',
-                orderDirection: req.query.orderDirection || 'DESC',
-                filters: {
+                orderBy: orderBy,
+                orderDir: (req.query.sortOrder || req.query.orderDirection || 'desc').toUpperCase(),
+                filter: {
                     status: req.query.status !== undefined ? req.query.status === 'true' : undefined,
                     is_connected: req.query.is_connected !== undefined ? req.query.is_connected === 'true' : undefined,
                     type: req.query.type || undefined

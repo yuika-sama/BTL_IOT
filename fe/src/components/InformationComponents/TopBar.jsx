@@ -1,37 +1,34 @@
 import React, { useState } from 'react';
 import { Search, ChevronDown } from 'lucide-react';
 
-export default function TopBar({ filterOptions = [] }) {
+export default function TopBar({ filterOptions = [], onSearch, onFilterChange, onSort }) {
     const [searchValue, setSearchValue] = useState('');
     const [selectedFilter, setSelectedFilter] = useState('all');
     const [sortOrder, setSortOrder] = useState('asc');
-    const [timeUnit, setTimeUnit] = useState('hour');
     const [showFilterDropdown, setShowFilterDropdown] = useState(false);
     const [showSortDropdown, setShowSortDropdown] = useState(false);
-    const [showTimeDropdown, setShowTimeDropdown] = useState(false);
 
     const handleSearchChange = (e) => {
         const value = e.target.value;
-        // Chỉ cho phép chữ cái, số và khoảng trắng
-        setSearchValue(value)
+        setSearchValue(value);
     };
 
-    const timeUnits = [
-        { value: 'second', label: 'Giây' },
-        { value: 'minute', label: 'Phút' },
-        { value: 'hour', label: 'Giờ' },
-        { value: 'day', label: 'Ngày' },
-        { value: 'month', label: 'Tháng' },
-        { value: 'year', label: 'Năm' }
-    ];
+    const handleSearch = () => {
+        if (onSearch) {
+            onSearch(searchValue, selectedFilter);
+        }
+    };
+
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            handleSearch();
+        }
+    };
 
     const sortOptions = [
         { value: 'asc', label: 'Tăng dần' },
         { value: 'desc', label: 'Giảm dần' }
     ];
-
-    // Kiểm tra xem filter hiện tại có phải là "Thời gian" không
-    const isTimeFilter = selectedFilter === 'time';
 
     return (
         <div className="flex items-center gap-4 p-4">
@@ -42,10 +39,17 @@ export default function TopBar({ filterOptions = [] }) {
                         type="text"
                         value={searchValue}
                         onChange={handleSearchChange}
+                        onKeyDown={handleKeyDown}
                         placeholder="Tìm kiếm theo: Tên, thời gian(giờ, phút, giây), giá trị,..."
-                        className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-3xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-lg"
+                        className="w-full pl-12 pr-20 py-3 bg-white border border-gray-200 rounded-3xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-lg"
                     />
                     <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                    <button
+                        onClick={handleSearch}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors text-sm font-medium"
+                    >
+                        Tìm
+                    </button>
                 </div>
 
                 {/* Filter Dropdown */}
@@ -68,6 +72,9 @@ export default function TopBar({ filterOptions = [] }) {
                                     onClick={() => {
                                         setSelectedFilter(option.type);
                                         setShowFilterDropdown(false);
+                                        if (onFilterChange) {
+                                            onFilterChange(option.type);
+                                        }
                                     }}
                                     className="w-full text-left px-4 py-2 hover:bg-blue-50 hover:text-blue-700 transition-colors rounded-3xl"
                                 >
@@ -99,6 +106,9 @@ export default function TopBar({ filterOptions = [] }) {
                                 onClick={() => {
                                     setSortOrder(option.value);
                                     setShowSortDropdown(false);
+                                    if (onSort) {
+                                        onSort(option.value);
+                                    }
                                 }}
                                 className="w-full text-left px-4 py-2 hover:bg-blue-50 hover:text-blue-700 transition-colors rounded-3xl"
                             >
@@ -108,38 +118,6 @@ export default function TopBar({ filterOptions = [] }) {
                     </div>
                 )}
             </div>
-
-            {/* Time Unit Dropdown - Chỉ hiển thị khi filter là "Thời gian" */}
-            {isTimeFilter && (
-                <div className="relative">
-                    <button
-                        onClick={() => setShowTimeDropdown(!showTimeDropdown)}
-                        className="group flex items-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-3xl hover:bg-blue-50 transition-colors min-w-[160px] shadow-lg"
-                    >
-                        <span className="group-hover:text-blue-700 text-gray-700">
-                            Tìm kiếm theo: {timeUnits.find(unit => unit.value === timeUnit)?.label}
-                        </span>
-                        <ChevronDown size={16} className={`group-hover:text-blue-600 text-gray-500 transition-transform ${showTimeDropdown ? 'rotate-180' : ''}`} />
-                    </button>
-                    
-                    {showTimeDropdown && (
-                        <div className="absolute top-full mt-2 right-0 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[160px] z-10 shadow-lg">
-                            {timeUnits.map((unit) => (
-                                <button
-                                    key={unit.value}
-                                    onClick={() => {
-                                        setTimeUnit(unit.value);
-                                        setShowTimeDropdown(false);
-                                    }}
-                                    className="w-full text-left px-4 py-2 hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                                >
-                                    {unit.label}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            )}
         </div>
     );
 }

@@ -16,6 +16,7 @@ export default function ActionHistory(){
     });
     const [filters, setFilters] = useState({
         search: '',
+        filterType: 'all',
         deviceId: '',
         action: '',
         status: '',
@@ -45,7 +46,8 @@ export default function ActionHistory(){
             const params = {
                 page: pagination.page,
                 limit: pagination.limit,
-                ...filters
+                ...filters,
+                filterType: filters.filterType === 'all' ? '' : filters.filterType
             };
 
             const response = await actionHistoryService.getAll(params);
@@ -70,18 +72,26 @@ export default function ActionHistory(){
         setPagination(prev => ({ ...prev, page: newPage }));
     };
 
-    const handleFilterChange = (newFilters) => {
-        setFilters(prev => ({ ...prev, ...newFilters }));
-        setPagination(prev => ({ ...prev, page: 1 })); // Reset về trang 1 khi filter
-    };
-
-    const handleSearch = (searchValue) => {
-        setFilters(prev => ({ ...prev, search: searchValue }));
+    const handleFilterChange = (filterType) => {
+        setFilters(prev => ({ ...prev, filterType: filterType }));
+        console.log('Filter changed to:', filterType);
         setPagination(prev => ({ ...prev, page: 1 }));
     };
 
-    const handleSort = (sortBy, sortOrder) => {
-        setFilters(prev => ({ ...prev, sortBy, sortOrder }));
+    const handleSearch = (searchValue, filterType) => {
+        setFilters(prev => ({ 
+            ...prev, 
+            search: searchValue,
+            filterType: filterType || prev.filterType
+        }));
+        setPagination(prev => ({ ...prev, page: 1 }));
+    };
+
+    const handleSort = (sortOrder) => {
+        setFilters(prev => ({ 
+            ...prev, 
+            sortOrder: sortOrder
+        }));
     };
 
     console.log(data)
@@ -119,14 +129,19 @@ export default function ActionHistory(){
             key: 'id',
             header: 'ID', 
             accessor: 'id',
-            cellClassName: 'font-semibold'
+            cellClassName: 'font-semibold',
+            render: (value, row) => {
+                const currentIndex = data.findIndex(item => item.id === row.id);
+                const stt = (pagination.page - 1) * pagination.limit + currentIndex + 1;
+                return (<span className="text-sm text-gray-500">{stt}</span>);
+            }
         },
         { 
             key: 'device_name', 
             header: 'Tên thiết bị', 
             accessor: 'device_name',
             render: (value) => (
-                <span className="">{formatName(value)}</span>
+                <span className="">{value}</span>
             )
         },
         { 

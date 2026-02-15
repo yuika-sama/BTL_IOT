@@ -1,23 +1,25 @@
 const ActionHistory = require('../models/actionHistoryModel');
-
+const formatTime = require('../utils/formatter').formatTime;
 class ActionHistoryController {
     // Action History Page: Get all action history with pagination, search, filters
     static async getAll(req, res, next) {
         try {
+            // Map frontend field names to database column names
+            const orderByMap = {
+                'timestamp': 'created_at',
+                'created_at': 'created_at'
+            };
+            
+            const rawOrderBy = req.query.sortBy || req.query.orderBy || 'created_at';
+            const orderBy = orderByMap[rawOrderBy] || 'created_at';
+            
             const options = {
                 page: parseInt(req.query.page) || 1,
                 limit: parseInt(req.query.limit) || 10,
                 search: req.query.search || '',
-                orderBy: req.query.orderBy || 'created_at',
-                orderDirection: req.query.orderDirection || 'DESC',
-                filters: {
-                    device_id: req.query.device_id || undefined,
-                    status: req.query.status || undefined,
-                    command: req.query.command || undefined,
-                    executor: req.query.executor || undefined,
-                    startDate: req.query.startDate || undefined,
-                    endDate: req.query.endDate || undefined
-                }
+                filterType: req.query.filterType || '',
+                orderBy: orderBy,
+                orderDirection: (req.query.sortOrder || req.query.orderDirection || 'desc').toUpperCase(),
             };
 
             const result = await ActionHistory.getAll(options);

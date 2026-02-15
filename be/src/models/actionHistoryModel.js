@@ -7,57 +7,38 @@ class ActionHistory {
             page = 1,
             limit = 10,
             search = '',
+            filterType = '',
             orderBy = 'created_at',
             orderDirection = 'DESC',
-            filters = {}
         } = options;
 
         const offset = (page - 1) * limit;
         let whereConditions = [];
         let queryParams = [];
 
-        // Search by exact time
+        // Search based on filterType
         if (search) {
-            const timeParts = search.split(':');
-            if (timeParts.length === 3) {
-                // Exact second: HH:MM:SS
-                whereConditions.push('TIME(ah.created_at) = ?');
-                queryParams.push(search);
-            } else if (timeParts.length === 2) {
-                // Exact minute: HH:MM
-                whereConditions.push('DATE_FORMAT(ah.created_at, "%H:%i") = ?');
-                queryParams.push(search);
-            } else if (timeParts.length === 1 && search.length <= 2) {
-                // Hour: HH
-                whereConditions.push('HOUR(ah.created_at) = ?');
-                queryParams.push(parseInt(search));
+            if (filterType === 'name') {
+                whereConditions.push('d.name LIKE ?');
+                queryParams.push(`%${search}%`);
+            } else if (filterType === 'action') {
+                whereConditions.push('ah.command LIKE ?');
+                queryParams.push(`%${search}%`);
+            } else if (filterType === 'status') {
+                whereConditions.push('ah.status LIKE ?');
+                queryParams.push(`%${search}%`);
+            } else if (filterType === 'user') {
+                whereConditions.push('ah.executor LIKE ?');
+                queryParams.push(`%${search}%`);
+            } else if (filterType === 'time') {
+                // Format datetime to DD/MM/YYYY HH:MM:SS for search
+                whereConditions.push('DATE_FORMAT(ah.created_at, "%d/%m/%Y %H:%i:%s") LIKE ?');
+                queryParams.push(`%${search}%`);
             } else {
-                // General search
-                whereConditions.push('(d.name LIKE ? OR ah.command LIKE ? OR ah.executor LIKE ?)');
-                queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
+                // Search all fields including formatted time
+                whereConditions.push('(d.name LIKE ? OR ah.command LIKE ? OR ah.executor LIKE ? OR ah.status LIKE ? OR DATE_FORMAT(ah.created_at, "%d/%m/%Y %H:%i:%s") LIKE ?)');
+                queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
             }
-        }
-
-        // Filters
-        if (filters.device_id) {
-            whereConditions.push('ah.device_id = ?');
-            queryParams.push(filters.device_id);
-        }
-        if (filters.status) {
-            whereConditions.push('ah.status = ?');
-            queryParams.push(filters.status);
-        }
-        if (filters.command) {
-            whereConditions.push('ah.command = ?');
-            queryParams.push(filters.command);
-        }
-        if (filters.executor) {
-            whereConditions.push('ah.executor = ?');
-            queryParams.push(filters.executor);
-        }
-        if (filters.startDate && filters.endDate) {
-            whereConditions.push('ah.created_at BETWEEN ? AND ?');
-            queryParams.push(filters.startDate, filters.endDate);
         }
 
         const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
@@ -80,7 +61,7 @@ class ActionHistory {
                 ah.command as value,
                 ah.status,
                 ah.executor,
-                ah.created_at as timestamp,
+                DATE_ADD(ah.created_at, INTERVAL 7 HOUR) as timestamp,
                 CASE 
                     WHEN ah.command IN ('ENABLE_AUTO', 'DISABLE_AUTO') THEN ah.command
                     ELSE NULL
@@ -119,7 +100,9 @@ class ActionHistory {
 
     static async getById(id) {
         const [rows] = await db.query(
-            `SELECT ah.*, d.name as device_name
+            `SELECT ah.*, 
+                d.name as device_name,
+                DATE_ADD(ah.created_at, INTERVAL 7 HOUR) as timestamp
             FROM action_history ah
             LEFT JOIN devices d ON ah.device_id = d.id
             WHERE ah.id = ?`,
@@ -130,7 +113,12 @@ class ActionHistory {
 
     static async getByDeviceId(deviceId, limit = 50) {
         const [rows] = await db.query(
-            'SELECT * FROM action_history WHERE device_id = ? ORDER BY created_at DESC LIMIT ?',
+            `SELECT *, 
+                DATE_ADD(created_at, INTERVAL 7 HOUR) as timestamp 
+            FROM action_history 
+            WHERE device_id = ? 
+            ORDER BY created_at DESC 
+            LIMIT ?`,
             [deviceId, limit]
         );
         return rows;
@@ -138,7 +126,9 @@ class ActionHistory {
 
     static async getByExecutor(executor, limit = 50) {
         const [rows] = await db.query(
-            `SELECT ah.*, d.name as device_name
+            `SELECT ah.*, 
+                d.name as device_name,
+                DATE_ADD(ah.created_at, INTERVAL 7 HOUR) as timestamp
             FROM action_history ah
             LEFT JOIN devices d ON ah.device_id = d.id
             WHERE ah.executor = ? 
@@ -151,7 +141,9 @@ class ActionHistory {
 
     static async getByStatus(status, limit = 50) {
         const [rows] = await db.query(
-            `SELECT ah.*, d.name as device_name
+            `SELECT ah.*, 
+                d.name as device_name,
+                DATE_ADD(ah.created_at, INTERVAL 7 HOUR) as timestamp
             FROM action_history ah
             LEFT JOIN devices d ON ah.device_id = d.id
             WHERE ah.status = ? 
@@ -194,7 +186,9 @@ class ActionHistory {
 
     static async getByDateRange(startDate, endDate) {
         const [rows] = await db.query(
-            `SELECT ah.*, d.name as device_name
+            `SELECT ah.*, 
+                d.name as device_name,
+                DATE_ADD(ah.created_at, INTERVAL 7 HOUR) as timestamp
             FROM action_history ah
             LEFT JOIN devices d ON ah.device_id = d.id
             WHERE ah.created_at BETWEEN ? AND ?
@@ -210,7 +204,7 @@ class ActionHistory {
                 command,
                 status,
                 COUNT(*) as count,
-                DATE(created_at) as date
+                DATE_ADD(created_at, INTERVAL 7 HOUR) as date
             FROM action_history
             WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
             GROUP BY command, status, DATE(created_at)

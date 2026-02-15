@@ -8,8 +8,8 @@ export function formatName(name) {
   return name
     .trim()
     .toLowerCase()
-    // .replace(/\s+/g, " ")
-    // .replace(/\b\w/g, char => char.toUpperCase());
+    .replace(/\s+/g, " ")
+    .replace(/\b\w/g, char => char.toUpperCase());
 }
 export function formatTime(isoString) {
   const date = new Date(isoString);
