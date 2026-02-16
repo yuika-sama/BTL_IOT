@@ -44,12 +44,12 @@ export default function TopBar({ filterOptions = [], onSearch, onFilterChange, o
                         className="w-full pl-12 pr-20 py-3 bg-white border border-gray-200 rounded-3xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-lg"
                     />
                     <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                    <button
+                    {/* <button
                         onClick={handleSearch}
                         className="absolute right-2 top-1/2 transform -translate-y-1/2 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors text-sm font-medium"
                     >
                         Tìm
-                    </button>
+                    </button> */}
                 </div>
 
                 {/* Filter Dropdown */}
@@ -65,7 +65,7 @@ export default function TopBar({ filterOptions = [], onSearch, onFilterChange, o
                     </button>
                     
                     {showFilterDropdown && (
-                        <div className="absolute top-full mt-2 right-0 bg-white border border-gray-200 rounded-3xl shadow-lg py-1 min-w-[140px] z-10  shadow-lg">
+                        <div className="absolute top-full mt-2 right-0 bg-white border-2 border-gray-100 rounded-2xl shadow-xl py-2 min-w-[140px] z-10 backdrop-blur-sm">
                             {filterOptions.map((option) => (
                                 <button
                                     key={option.type}
@@ -76,7 +76,7 @@ export default function TopBar({ filterOptions = [], onSearch, onFilterChange, o
                                             onFilterChange(option.type);
                                         }
                                     }}
-                                    className="w-full text-left px-4 py-2 hover:bg-blue-50 hover:text-blue-700 transition-colors rounded-3xl"
+                                    className="w-full text-left px-4 py-2.5 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 hover:text-blue-700 transition-all duration-150 font-medium text-gray-700 first:rounded-t-xl last:rounded-b-xl"
                                 >
                                     {option.displayText}
                                 </button>
@@ -90,16 +90,16 @@ export default function TopBar({ filterOptions = [], onSearch, onFilterChange, o
             <div className="relative">
                 <button
                     onClick={() => setShowSortDropdown(!showSortDropdown)}
-                    className="group flex items-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-3xl hover:bg-blue-50 transition-colors min-w-[160px] shadow-lg"
+                    className="group flex items-center gap-2 px-5 py-3.5 bg-white border-2 border-gray-200 rounded-3xl hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 min-w-[160px] shadow-lg hover:shadow-xl"
                 >
-                    <span className="group-hover:text-blue-700 text-gray-700">
+                    <span className="group-hover:text-blue-700 text-gray-700 font-medium">
                         Sắp xếp: {sortOptions.find(opt => opt.value === sortOrder)?.label}
                     </span>
-                    <ChevronDown size={16} className={`group-hover:text-blue-600 text-gray-500 transition-transform ${showSortDropdown ? 'rotate-180' : ''}`} />
+                    <ChevronDown size={16} className={`group-hover:text-blue-600 text-gray-500 transition-all duration-300 ${showSortDropdown ? 'rotate-180' : ''}`} />
                 </button>
                 
                 {showSortDropdown && (
-                    <div className="absolute top-full mt-2 right-0 bg-white border border-gray-200 rounded-3xl shadow-lg py-1 min-w-[160px] z-10 shadow-lg">
+                    <div className="absolute top-full mt-2 right-0 bg-white border-2 border-gray-100 rounded-2xl shadow-xl py-2 min-w-[160px] z-10 backdrop-blur-sm">
                         {sortOptions.map((option) => (
                             <button
                                 key={option.value}
@@ -110,7 +110,7 @@ export default function TopBar({ filterOptions = [], onSearch, onFilterChange, o
                                         onSort(option.value);
                                     }
                                 }}
-                                className="w-full text-left px-4 py-2 hover:bg-blue-50 hover:text-blue-700 transition-colors rounded-3xl"
+                                className="w-full text-left px-4 py-2.5 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 hover:text-blue-700 transition-all duration-150 font-medium text-gray-700 first:rounded-t-xl last:rounded-b-xl"
                             >
                                 {option.label}
                             </button>

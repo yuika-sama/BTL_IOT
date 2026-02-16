@@ -243,10 +243,14 @@ export default function Dashboard() {
     return (
         <MainLayout>
             {/* Socket Connection Status */}
-            <div className="mb-4 flex items-center gap-2">
-                <div className={`w-3 h-3 rounded-full ${isConnected() ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                <span className="text-sm text-gray-600">
-                    {isConnected() ? 'Connected to server' : 'Disconnected'}
+            <div className="mb-6 flex items-center gap-3 bg-white px-5 py-3 rounded-2xl shadow-md border border-gray-100 w-fit">
+                <div className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                    isConnected() ? 'bg-green-500 shadow-lg shadow-green-200 animate-pulse' : 'bg-red-500 shadow-lg shadow-red-200'
+                }`}></div>
+                <span className="text-sm font-medium ${
+                    isConnected() ? 'text-green-700' : 'text-red-700'
+                }">
+                    {isConnected() ? 'Đã kết nối với server' : 'Mất kết nối'}
                 </span>
             </div>
 
@@ -263,9 +267,12 @@ export default function Dashboard() {
 
                     {/* Grid 2x2 ToggleCards */}
                     {loading ? (
-                        <div className="text-center py-8">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-                            <p className="mt-2 text-gray-600">Loading devices...</p>
+                        <div className="flex flex-col justify-center items-center py-12 bg-white rounded-3xl shadow-lg border border-gray-100">
+                            <div className="relative">
+                                <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                                <div className="absolute inset-0 w-12 h-12 border-4 border-transparent border-t-blue-400 rounded-full animate-ping opacity-20"></div>
+                            </div>
+                            <p className="mt-4 text-gray-600 font-medium">Loading devices...</p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-2 gap-4">

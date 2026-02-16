@@ -24,7 +24,6 @@ export default function DataSensor(){
 
     const filterOptions = [
         {type: 'all', displayText: 'Tất cả'},
-        {type: 'name', displayText: 'Tên thiết bị'},
         {type: 'temperature', displayText: 'Nhiệt độ'},
         {type: 'humidity', displayText: 'Độ ẩm'},
         {type: 'light', displayText: 'Ánh sáng'},
@@ -72,7 +71,25 @@ export default function DataSensor(){
     };
 
     const handleFilterChange = (filterType) => {
-        setFilters(prev => ({ ...prev, filterType: filterType }));
+        // Xác định sortBy dựa trên filterType mới
+        let sortBy = 'timestamp'; // Mặc định sắp xếp theo thời gian
+        
+        if (filterType !== 'all' && filterType !== 'time') {
+            const sortByMapping = {
+                'name': 'sensor_name',
+                'temperature': 'temperature',
+                'humidity': 'humidity',
+                'light': 'light',
+                'dust': 'dust'
+            };
+            sortBy = sortByMapping[filterType] || 'timestamp';
+        }
+        
+        setFilters(prev => ({ 
+            ...prev, 
+            filterType: filterType,
+            sortBy: sortBy
+        }));
         console.log('Filter changed to:', filterType);
         setPagination(prev => ({ ...prev, page: 1 }));
     };
@@ -87,9 +104,25 @@ export default function DataSensor(){
     };
 
     const handleSort = (sortOrder) => {
+        // Xác định sortBy dựa trên filterType hiện tại
+        let sortBy = 'timestamp'; // Mặc định sắp xếp theo thời gian
+        
+        // Nếu filterType không phải 'all' hoặc 'time', có thể sort theo field đó
+        if (filters.filterType !== 'all' && filters.filterType !== 'time') {
+            // Mapping filterType sang sortBy field cho sensor data
+            const sortByMapping = {
+                'temperature': 'temperature',
+                'humidity': 'humidity',
+                'light': 'light',
+                'dust': 'dust'
+            };
+            sortBy = sortByMapping[filters.filterType] || 'timestamp';
+        }
+        
         setFilters(prev => ({ 
             ...prev, 
-            sortOrder: sortOrder
+            sortOrder: sortOrder,
+            sortBy: sortBy
         }));
     };
 
@@ -101,6 +134,7 @@ export default function DataSensor(){
         { key: 'dust', header: 'Bụi mịn', accessor: 'dust', render: (value) => (<span className="font-medium text-gray-400">{formatNumber(value)    }µg/m³</span>)},
         { key: 'timestamp', header: 'Thời gian', accessor: 'timestamp', cellClassName:'', render: (value) => (<span className="text-sm text-gray-500">{new Date(value).toLocaleString()}</span>)},
     ]
+    console.log(data)
     
     return(
         <MainLayout>

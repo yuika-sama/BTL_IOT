@@ -206,8 +206,16 @@ class DataSensor{
         let whereConditions = ['ds.sensor_id IN (?)'];
         let queryParams = [sensorIds];
 
+        // Helper function to check if string is numeric
+        const isNumeric = (str) => {
+            if (typeof str !== 'string') return false;
+            return !isNaN(str) && !isNaN(parseFloat(str));
+        };
+
         // Search based on filterType
         if (search) {
+            const sensorTypeFilters = ['temperature', 'humidity', 'light', 'dust'];
+            
             if (filterType === 'name') {
                 whereConditions.push('d.name LIKE ?');
                 queryParams.push(`%${search}%`);
@@ -215,8 +223,32 @@ class DataSensor{
                 // Format datetime to DD/MM/YYYY HH:MM:SS for search
                 whereConditions.push('DATE_FORMAT(ds.created_at, "%d/%m/%Y %H:%i:%s") LIKE ?');
                 queryParams.push(`%${search}%`);
+            } else if (sensorTypeFilters.includes(filterType) && isNumeric(search)) {
+                // Numeric search for sensor values - use ROUND for flexible matching
+                // This allows searching "25.5" to match "25.50", "25.500", etc.
+                const searchNum = parseFloat(search);
+                const decimalPlaces = (search.split('.')[1] || '').length;
+                
+                // Build condition to match the specific sensor type
+                const sensorNameMap = {
+                    'temperature': 'nhiệt độ',
+                    'humidity': 'độ ẩm',
+                    'light': 'ánh sáng',
+                    'dust': 'bụi'
+                };
+                const sensorName = sensorNameMap[filterType];
+                
+                whereConditions.push(`(LOWER(s.name) LIKE LOWER(?) AND ROUND(ds.value, ${decimalPlaces}) = ?)`);
+                queryParams.push(`%${sensorName}%`, searchNum);
+            } else if (isNumeric(search)) {
+                // Numeric search across all sensor values when filterType is 'all'
+                const searchNum = parseFloat(search);
+                const decimalPlaces = (search.split('.')[1] || '').length;
+                
+                whereConditions.push(`(d.name LIKE ? OR DATE_FORMAT(ds.created_at, "%d/%m/%Y %H:%i:%s") LIKE ? OR ROUND(ds.value, ${decimalPlaces}) = ?)`);
+                queryParams.push(`%${search}%`, `%${search}%`, searchNum);
             } else {
-                // Search all fields including formatted time
+                // Text search all fields including formatted time
                 whereConditions.push('(d.name LIKE ? OR DATE_FORMAT(ds.created_at, "%d/%m/%Y %H:%i:%s") LIKE ?)');
                 queryParams.push(`%${search}%`, `%${search}%`);
             }

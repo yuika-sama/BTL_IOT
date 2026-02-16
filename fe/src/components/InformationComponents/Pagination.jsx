@@ -56,22 +56,22 @@ export default function Pagination({
     };
 
     return (
-        <div className="flex items-center justify-between mt-3 px-6 py-4 bg-white border-t border-gray-200 rounded-3xl shadow-xl">
+        <div className="flex items-center justify-between mt-4 px-8 py-5 bg-white border border-gray-100 rounded-3xl shadow-lg transition-shadow duration-300 hover:shadow-xl">
             {/* Info text */}
-            <div className="text-sm text-gray-600">
-                Hiển thị {startItem}-{endItem} của {totalItems} bản ghi
+            <div className="text-sm font-medium text-gray-600 bg-gray-50 px-4 py-2 rounded-full">
+                Hiển thị <span className="font-bold text-blue-600">{startItem}-{endItem}</span> của <span className="font-bold text-blue-600">{totalItems}</span> bản ghi
             </div>
 
             {/* Pagination controls */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
                 {/* Previous button */}
                 <button
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
-                    className={`p-2 rounded-lg transition-colors ${
+                    className={`p-2.5 rounded-xl transition-all duration-200 ${
                         currentPage === 1
-                            ? 'text-gray-300 cursor-not-allowed'
-                            : 'text-gray-600 hover:bg-gray-100'
+                            ? 'text-gray-300 cursor-not-allowed bg-gray-50'
+                            : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600 hover:shadow-md'
                     }`}
                 >
                     <ChevronLeft size={20} />
@@ -83,7 +83,7 @@ export default function Pagination({
                         return (
                             <span
                                 key={`ellipsis-${index}`}
-                                className="px-3 py-2 text-gray-600"
+                                className="px-3 py-2 text-gray-400 font-medium"
                             >
                                 ...
                             </span>
@@ -94,10 +94,10 @@ export default function Pagination({
                         <button
                             key={page}
                             onClick={() => handlePageChange(page)}
-                            className={`min-w-[40px] px-3 py-2 rounded-lg transition-colors ${
+                            className={`min-w-[42px] px-4 py-2.5 rounded-xl font-semibold transition-all duration-200 ${
                                 currentPage === page
-                                    ? 'bg-blue-500 text-white font-medium'
-                                    : 'text-gray-600 hover:bg-gray-100'
+                                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md shadow-blue-200 scale-105'
+                                    : 'text-gray-600 hover:bg-blue-50 hover:text-blue-600 hover:shadow-sm'
                             }`}
                         >
                             {page}
@@ -109,10 +109,10 @@ export default function Pagination({
                 <button
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
-                    className={`p-2 rounded-lg transition-colors ${
+                    className={`p-2.5 rounded-xl transition-all duration-200 ${
                         currentPage === totalPages
-                            ? 'text-gray-300 cursor-not-allowed'
-                            : 'text-gray-600 hover:bg-gray-100'
+                            ? 'text-gray-300 cursor-not-allowed bg-gray-50'
+                            : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600 hover:shadow-md'
                     }`}
                 >
                     <ChevronRight size={20} />

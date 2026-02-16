@@ -2,6 +2,63 @@ const db = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
 
 class Alert {
+    // Helper function to normalize search terms for severity
+    static normalizeSeverityTerm(search) {
+        const searchLower = search.toLowerCase().trim();
+        
+        // Map Vietnamese terms to database severity values
+        const severityMap = {
+            // High severity (Nghiêm trọng)
+            'nghiêm trọng': 'high',
+            'nghiem trong': 'high',
+            'nghiêmtrọng': 'high',
+            'nghiêm': 'high',
+            'nghiem': 'high',
+            'cao': 'high',
+            'high': 'high',
+            
+            // Medium severity (Cảnh báo)
+            'cảnh báo': 'medium',
+            'canh bao': 'medium',
+            'cảnhbáo': 'medium',
+            'cb': 'medium',
+            'trung bình': 'medium',
+            'trung binh': 'medium',
+            'trungbình': 'medium',
+            'tb': 'medium',
+            'medium': 'medium',
+            'med': 'medium',
+            'warning': 'medium',
+            
+            // Low severity (Thông tin)
+            'thông tin': 'low',
+            'thong tin': 'low',
+            'thôngtín': 'low',
+            'tt': 'low',
+            'info': 'low',
+            'information': 'low',
+            'thấp': 'low',
+            'thap': 'low',
+            'low': 'low',
+            
+            // Normal severity (Bình thường)
+            'bình thường': 'normal',
+            'binh thuong': 'normal',
+            'bìnhthường': 'normal',
+            'bt': 'normal',
+            'normal': 'normal',
+            'ok': 'normal',
+            
+            // Critical (still supported for backward compatibility)
+            'nguy hiểm': 'critical',
+            'nguy hiem': 'critical',
+            'critical': 'critical',
+            'crit': 'critical'
+        };
+        
+        return severityMap[searchLower] || search;
+    }
+
     static async getAll(options = {}) {
         const {
             page = 1,
@@ -26,20 +83,24 @@ class Alert {
 
         // Search based on filterType
         if (search) {
+            // Normalize search term for severity
+            const normalizedSearch = this.normalizeSeverityTerm(search);
+            
             if (filterType === 'name') {
                 whereConditions.push('d.name LIKE ?');
                 queryParams.push(`%${search}%`);
             } else if (filterType === 'severity') {
-                whereConditions.push('a.severity LIKE ?');
-                queryParams.push(`%${search}%`);
+                // Search both original and normalized terms for severity
+                whereConditions.push('(a.severity LIKE ? OR a.severity LIKE ?)');
+                queryParams.push(`%${search}%`, `%${normalizedSearch}%`);
             } else if (filterType === 'time') {
                 // Format datetime to DD/MM/YYYY HH:MM:SS for search
                 whereConditions.push('DATE_FORMAT(a.created_at, "%d/%m/%Y %H:%i:%s") LIKE ?');
                 queryParams.push(`%${search}%`);
             } else {
-                // Search all fields including formatted time
-                whereConditions.push('(a.title LIKE ? OR a.description LIKE ? OR d.name LIKE ? OR DATE_FORMAT(a.created_at, "%d/%m/%Y %H:%i:%s") LIKE ?)');
-                queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+                // Search all fields including formatted time and both original/normalized terms
+                whereConditions.push('(a.title LIKE ? OR a.description LIKE ? OR d.name LIKE ? OR a.severity LIKE ? OR a.severity LIKE ? OR DATE_FORMAT(a.created_at, "%d/%m/%Y %H:%i:%s") LIKE ?)');
+                queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${normalizedSearch}%`, `%${search}%`);
             }
         }
         const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';

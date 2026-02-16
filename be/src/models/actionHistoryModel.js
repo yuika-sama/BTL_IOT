@@ -2,6 +2,66 @@ const db = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
 
 class ActionHistory {
+    // Helper function to normalize search terms
+    static normalizeSearchTerm(search) {
+        const searchLower = search.toLowerCase().trim();
+        
+        // Map Vietnamese terms to database values
+        const termMap = {
+            // Action mappings (ON/OFF)
+            'bật': 'on',
+            'bat': 'on', // without accent
+            'on': 'on',
+            'tắt': 'off',
+            'tat': 'off', // without accent
+            'off': 'off',
+            
+            // Specific auto toggle mappings (must come before general "auto")
+            'bật tự động': 'ENABLE_AUTO',
+            'bat tu dong': 'ENABLE_AUTO',
+            'bậttựđộng': 'ENABLE_AUTO',
+            'enable_auto': 'ENABLE_AUTO',
+            'enable auto': 'ENABLE_AUTO',
+            
+            'tắt tự động': 'DISABLE_AUTO',
+            'tat tu dong': 'DISABLE_AUTO',
+            'tắttựđộng': 'DISABLE_AUTO',
+            'disable_auto': 'DISABLE_AUTO',
+            'disable auto': 'DISABLE_AUTO',
+            
+            // General auto search - finds all auto-related actions
+            'tự động': 'auto',
+            'tu dong': 'auto',
+            'tựđộng': 'auto',
+            'auto': 'auto',
+            'automatic': 'auto',
+            
+            // Status mappings
+            'thành công': 'success',
+            'thanh cong': 'success',
+            'thànhcông': 'success',
+            'success': 'success',
+            
+            'thất bại': 'failed',
+            'that bai': 'failed',
+            'thấtbại': 'failed',
+            'failed': 'failed',
+            'fail': 'failed',
+            
+            'chờ': 'waiting',
+            'cho': 'waiting',
+            'đợi': 'waiting',
+            'doi': 'waiting',
+            'chờ đợi': 'waiting',
+            'cho doi': 'waiting',
+            'waiting': 'waiting',
+            'wait': 'waiting',
+            'pending': 'waiting'
+        };
+        
+        return termMap[searchLower] || search;
+    }
+
     static async getAll(options = {}) {
         const {
             page = 1,
@@ -18,15 +78,20 @@ class ActionHistory {
 
         // Search based on filterType
         if (search) {
+            // Normalize search term
+            const normalizedSearch = this.normalizeSearchTerm(search);
+            
             if (filterType === 'name') {
                 whereConditions.push('d.name LIKE ?');
                 queryParams.push(`%${search}%`);
             } else if (filterType === 'action') {
-                whereConditions.push('ah.command LIKE ?');
-                queryParams.push(`%${search}%`);
+                // Search both original and normalized terms for action
+                whereConditions.push('(ah.command LIKE ? OR ah.command LIKE ?)');
+                queryParams.push(`%${search}%`, `%${normalizedSearch}%`);
             } else if (filterType === 'status') {
-                whereConditions.push('ah.status LIKE ?');
-                queryParams.push(`%${search}%`);
+                // Search both original and normalized terms for status
+                whereConditions.push('(ah.status LIKE ? OR ah.status LIKE ?)');
+                queryParams.push(`%${search}%`, `%${normalizedSearch}%`);
             } else if (filterType === 'user') {
                 whereConditions.push('ah.executor LIKE ?');
                 queryParams.push(`%${search}%`);
@@ -35,9 +100,9 @@ class ActionHistory {
                 whereConditions.push('DATE_FORMAT(ah.created_at, "%d/%m/%Y %H:%i:%s") LIKE ?');
                 queryParams.push(`%${search}%`);
             } else {
-                // Search all fields including formatted time
-                whereConditions.push('(d.name LIKE ? OR ah.command LIKE ? OR ah.executor LIKE ? OR ah.status LIKE ? OR DATE_FORMAT(ah.created_at, "%d/%m/%Y %H:%i:%s") LIKE ?)');
-                queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+                // Search all fields including formatted time and both original/normalized terms
+                whereConditions.push('(d.name LIKE ? OR ah.command LIKE ? OR ah.command LIKE ? OR ah.executor LIKE ? OR ah.status LIKE ? OR ah.status LIKE ? OR DATE_FORMAT(ah.created_at, "%d/%m/%Y %H:%i:%s") LIKE ?)');
+                queryParams.push(`%${search}%`, `%${search}%`, `%${normalizedSearch}%`, `%${search}%`, `%${search}%`, `%${normalizedSearch}%`, `%${search}%`);
             }
         }
 
