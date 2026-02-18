@@ -75,21 +75,6 @@ const sensorService = {
       throw error;
     }
   },
-
-  /**
-   * Lấy sensor theo ID (Admin)
-   * @param {string} id - Sensor ID
-   * @returns {Promise} Sensor
-   */
-  getById: async (id) => {
-    try {
-      const response = await baseApi.get(`/sensors/${id}`);
-      return response;
-    } catch (error) {
-      console.error('Error fetching sensor:', error);
-      throw error;
-    }
-  }
 };
 
 export default sensorService;

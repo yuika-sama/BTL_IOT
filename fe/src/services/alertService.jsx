@@ -25,22 +25,6 @@ const alertService = {
       throw error;
     }
   },
-
-  /**
-   * Lấy thống kê cảnh báo
-   * @param {Object} params - Tham số query
-   * @param {string} params.period - Khoảng thời gian (day, week, month)
-   * @returns {Promise} Thống kê cảnh báo
-   */
-  getStatistics: async (params = {}) => {
-    try {
-      const response = await baseApi.get('/alerts/statistics', { params });
-      return response;
-    } catch (error) {
-      console.error('Error fetching alert statistics:', error);
-      throw error;
-    }
-  },
 };
 
 export default alertService;

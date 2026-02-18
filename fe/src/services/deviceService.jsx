@@ -90,20 +90,6 @@ const deviceService = {
       throw error;
     }
   },
-
-  /**
-   * Lấy thông tin một device theo ID
-   * @param {String} deviceId - ID của device
-   */
-  getDeviceById: async (deviceId) => {
-    try {
-      const response = await baseApi.get(`/devices/${deviceId}`);
-      return response;
-    } catch (error) {
-      console.error('Error fetching device:', error);
-      throw error;
-    }
-  },
   
   toggleAutoMode: async (deviceId) => {
     try {      

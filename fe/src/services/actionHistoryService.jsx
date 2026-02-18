@@ -25,22 +25,6 @@ const actionHistoryService = {
       throw error;
     }
   },
-
-  /**
-   * Lấy thống kê lịch sử hành động
-   * @param {Object} params - Tham số query
-   * @param {string} params.period - Khoảng thời gian (day, week, month)
-   * @returns {Promise} Thống kê
-   */
-  getStatistics: async (params = {}) => {
-    try {
-      const response = await baseApi.get('/action-history/statistics', { params });
-      return response;
-    } catch (error) {
-      console.error('Error fetching action history statistics:', error);
-      throw error;
-    }
-  },
 };
 
 export default actionHistoryService;
