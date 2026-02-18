@@ -1,11 +1,21 @@
 const express = require('express');
 const router = express.Router();
-const AlertController = require('../controllers/alertController');
+const alertController = require('../controllers/alertController');
+const asyncHandler = require('../middleware/asyncHandler');
+const Validator = require('../middleware/validator');
 
 // Notification Page: Get all alerts with pagination, search, filters
-router.get('/', AlertController.getAll);
+router.get(
+    '/',
+    Validator.combine(
+        Validator.validatePagination,
+        Validator.validateSortOrder,
+        Validator.validateDateRange
+    ),
+    asyncHandler(alertController.getAll)
+);
 
-// Get statistics (nếu cần hiển thị thống kê)
-router.get('/statistics', AlertController.getStatistics);
+// Get statistics
+router.get('/statistics', asyncHandler(alertController.getStatistics));
 
 module.exports = router;

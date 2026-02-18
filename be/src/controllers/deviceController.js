@@ -1,27 +1,32 @@
+const BaseController = require('./baseController');
 const Device = require('../models/deviceModel');
 const ActionHistory = require('../models/actionHistoryModel');
 const deviceService = require('../services/deviceService');
 const socketService = require('../services/socketService');
 const mqttService = require('../services/mqttService');
+const ApiResponse = require('../utils/response');
+const Logger = require('../utils/logger');
+const config = require('../config');
 
-class DeviceController {
+class DeviceController extends BaseController {
+    constructor() {
+        super(deviceService);
+    }
+
     // Dashboard: Get all devices info (only connected devices)
-    static async getAllDevicesInfo(req, res, next) {
+    getAllDevicesInfo = async (req, res, next) => {
         try {
             const devices = await Device.getAllDevicesInfo(true); // Only connected devices
             
-            res.json({
-                success: true,
-                message: 'Get all devices info successfully',
-                data: devices
-            });
+            return ApiResponse.success(res, devices, 'Get all devices info successfully');
         } catch (error) {
+            Logger.error('Error in getAllDevicesInfo:', error);
             next(error);
         }
     }
 
     // Dashboard: Toggle device status (ON/OFF) - MANUAL MODE
-    static async toggleStatus(req, res, next) {
+    toggleStatus = async (req, res, next) => {
         let actionHistory = null;
         
         try {
@@ -29,18 +34,12 @@ class DeviceController {
             
             const device = await Device.getById(id);
             if (!device) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Device not found'
-                });
+                return ApiResponse.notFound(res, 'Device not found');
             }
 
             // Check if device is connected
             if (!device.is_connected) {
-                return res.status(503).json({
-                    success: false,
-                    message: 'Device is not connected'
-                });
+                return ApiResponse.serviceUnavailable(res, 'Device is not connected');
             }
 
             // Toggle value: 1 (ON) <-> 0 (OFF)
@@ -72,20 +71,17 @@ class DeviceController {
             await Device.update(id, { auto_toggle: 0 });
 
             // Gửi lệnh điều khiển xuống ESP32 qua MQTT với tracking
-            // Map device ID to LED key using ENV variables
+            // Map device ID to LED key using config
             const ledMapping = {
-                [process.env.DEVICE_TEMPERATURE_ID]: 'led_temp',
-                [process.env.DEVICE_HUMIDITY_ID]: 'led_hum',
-                [process.env.DEVICE_LIGHT_ID]: 'led_ldr',
-                [process.env.DEVICE_DUST_ID]: 'led_dust'
+                [config.devices.temperature]: 'led_temp',
+                [config.devices.humidity]: 'led_hum',
+                [config.devices.light]: 'led_ldr',
+                [config.devices.dust]: 'led_dust'
             };
 
             const ledKey = ledMapping[id];
             if (!ledKey) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Invalid device type or device not configured in environment'
-                });
+                return ApiResponse.badRequest(res, 'Invalid device type or device not configured');
             }
 
             try {
@@ -101,19 +97,15 @@ class DeviceController {
 
                 // Response sent immediately after command is published
                 // Actual status update will come via MQTT confirmation
-                res.json({
-                    success: true,
-                    message: `Device command sent, waiting for confirmation...`,
-                    data: {
-                        id: id,
-                        status: 'waiting',
-                        value: previousValue,
-                        target_value: newValue
-                    }
-                });
+                return ApiResponse.success(res, {
+                    id: id,
+                    status: 'waiting',
+                    value: previousValue,
+                    target_value: newValue
+                }, 'Device command sent, waiting for confirmation...');
 
             } catch (error) {
-                console.error('❌ Failed to send command:', error);
+                Logger.error('Failed to send command:', error);
                 
                 // Update action history to failed
                 if (actionHistory && actionHistory.id) {
@@ -133,28 +125,22 @@ class DeviceController {
                     timestamp: new Date()
                 });
 
-                return res.status(500).json({
-                    success: false,
-                    message: 'Failed to send command to device',
-                    error: error.message
-                });
+                return ApiResponse.error(res, 'Failed to send command to device', 500);
             }
         } catch (error) {
+            Logger.error('Error in toggleStatus:', error);
             next(error);
         }
     }
 
     // Toggle auto_toggle for device
-    static async toggleAutoMode(req, res, next) {
+    toggleAutoMode = async (req, res, next) => {
         try {
             const { id } = req.params;
             
             const device = await Device.getById(id);
             if (!device) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Device not found'
-                });
+                return ApiResponse.notFound(res, 'Device not found');
             }
 
             // Toggle auto_toggle: 1 (AUTO) <-> 0 (MANUAL)
@@ -180,18 +166,19 @@ class DeviceController {
                 timestamp: new Date()
             });
 
-            res.json({
-                success: true,
-                message: `Device auto-toggle ${newAutoToggle === 1 ? 'ENABLED' : 'DISABLED'}`,
-                data: updatedDevice
-            });
+            return ApiResponse.success(
+                res, 
+                updatedDevice, 
+                `Device auto-toggle ${newAutoToggle === 1 ? 'ENABLED' : 'DISABLED'}`
+            );
         } catch (error) {
+            Logger.error('Error in toggleAutoMode:', error);
             next(error);
         }
     }
 
     // Get all devices with pagination, search, filters (Admin only)
-    static async getAll(req, res, next) {
+    getAll = async (req, res, next) => {
         try {
             // Map frontend field names to database column names
             const orderByMap = {
@@ -219,102 +206,84 @@ class DeviceController {
 
             const result = await Device.getAll(options);
             
-            res.json({
-                success: true,
-                message: 'Get all devices successfully',
-                ...result
-            });
+            return ApiResponse.paginated(res, result.data, result.pagination, 'Get all devices successfully');
         } catch (error) {
+            Logger.error('Error in getAll:', error);
             next(error);
         }
     }
 
     // Get device by ID (Admin only)
-    static async getById(req, res, next) {
+    getById = async (req, res, next) => {
         try {
             const { id } = req.params;
             const device = await Device.getById(id);
 
             if (!device) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Device not found'
-                });
+                return ApiResponse.notFound(res, 'Device not found');
             }
 
-            res.json({
-                success: true,
-                message: 'Get device successfully',
-                data: device
-            });
+            return ApiResponse.success(res, device, 'Get device successfully');
         } catch (error) {
+            Logger.error('Error in getById:', error);
             next(error);
         }
     }
 
     // Create new device (Admin only)
-    static async create(req, res, next) {
+    create = async (req, res, next) => {
         try {
             const { name, status } = req.body;
 
             if (!name) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Name is required'
-                });
+                return ApiResponse.badRequest(res, 'Name is required');
             }
 
             const device = await Device.create(name, status || false);
 
-            res.status(201).json({
-                success: true,
-                message: 'Device created successfully',
-                data: device
-            });
+            return ApiResponse.created(res, device, 'Device created successfully');
         } catch (error) {
+            Logger.error('Error in create:', error);
             next(error);
         }
     }
 
     // Update device (Admin only)
-    static async update(req, res, next) {
+    update = async (req, res, next) => {
         try {
             const { id } = req.params;
             const deviceData = req.body;
 
             const device = await Device.update(id, deviceData);
 
-            res.json({
-                success: true,
-                message: 'Device updated successfully',
-                data: device
-            });
+            return ApiResponse.success(res, device, 'Device updated successfully');
         } catch (error) {
+            Logger.error('Error in update:', error);
             next(error);
         }
     }
 
     // Delete device (Admin only)
-    static async delete(req, res, next) {
+    delete = async (req, res, next) => {
         try {
             const { id } = req.params;
             const deleted = await Device.delete(id);
 
             if (!deleted) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Device not found'
-                });
+                return ApiResponse.notFound(res, 'Device not found');
             }
 
-            res.json({
-                success: true,
-                message: 'Device deleted successfully'
-            });
+            return ApiResponse.success(res, null, 'Device deleted successfully');
         } catch (error) {
+            Logger.error('Error in delete:', error);
             next(error);
         }
     }
+
+    // Override allowed filters
+    getAllowedFilters() {
+        return ['status', 'is_connected', 'type'];
+    }
 }
 
-module.exports = DeviceController;
+module.exports = new DeviceController();

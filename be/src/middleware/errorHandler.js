@@ -1,57 +1,89 @@
+const ApiResponse = require('../utils/response');
+const Logger = require('../utils/logger');
+
+/**
+ * Custom Application Error
+ */
+class AppError extends Error {
+  constructor(message, statusCode = 500) {
+    super(message);
+    this.statusCode = statusCode;
+    this.isOperational = true;
+    Error.captureStackTrace(this, this.constructor);
+  }
+}
+
+/**
+ * Main Error Handler Middleware
+ */
 const errorHandler = (err, req, res, next) => {
-  console.error('❌ Error:', err);
+  // Log error with context
+  Logger.error('Error occurred:', {
+    message: err.message,
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+    url: req.originalUrl,
+    method: req.method
+  });
 
   // Mongoose validation error
   if (err.name === 'ValidationError') {
-    return res.status(400).json({
-      success: false,
-      message: 'Validation error',
-      errors: Object.values(err.errors).map(e => e.message)
-    });
+    const errors = Object.values(err.errors).map(e => ({
+      field: e.path,
+      message: e.message
+    }));
+    return ApiResponse.badRequest(res, 'Validation error', errors);
   }
 
   // MySQL duplicate entry error
   if (err.code === 'ER_DUP_ENTRY') {
-    return res.status(409).json({
-      success: false,
-      message: 'Duplicate entry',
-      error: err.sqlMessage
-    });
+    return ApiResponse.error(res, 'Duplicate entry: Resource already exists', 409);
   }
 
   // MySQL foreign key constraint error
   if (err.code === 'ER_ROW_IS_REFERENCED_2' || err.code === 'ER_NO_REFERENCED_ROW_2') {
-    return res.status(400).json({
-      success: false,
-      message: 'Foreign key constraint error',
-      error: err.sqlMessage
-    });
+    return ApiResponse.badRequest(res, 'Cannot perform operation: Foreign key constraint violation');
+  }
+
+  // MySQL connection error
+  if (err.code === 'ECONNREFUSED' || err.code === 'ER_ACCESS_DENIED_ERROR') {
+    return ApiResponse.error(res, 'Database connection error', 500);
   }
 
   // JWT errors
   if (err.name === 'JsonWebTokenError') {
-    return res.status(401).json({
-      success: false,
-      message: 'Invalid token'
-    });
+    return ApiResponse.unauthorized(res, 'Invalid authentication token');
   }
 
   if (err.name === 'TokenExpiredError') {
-    return res.status(401).json({
-      success: false,
-      message: 'Token expired'
-    });
+    return ApiResponse.unauthorized(res, 'Authentication token expired');
   }
 
-  // Default error
-  const status = err.status || err.statusCode || 500;
-  const message = err.message || 'Internal Server Error';
+  // Cast error (invalid ID format)
+  if (err.name === 'CastError') {
+    return ApiResponse.badRequest(res, 'Invalid resource ID format');
+  }
 
-  res.status(status).json({
-    success: false,
-    message,
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-  });
+  // Default error response
+  const statusCode = err.statusCode || err.status || 500;
+  const message = err.isOperational ? err.message : 'Internal Server Error';
+
+  // In production, don't leak error details
+  const errorResponse = process.env.NODE_ENV === 'development' 
+    ? { message, stack: err.stack }
+    : { message };
+
+  return ApiResponse.error(res, errorResponse.message, statusCode);
 };
 
-module.exports = errorHandler;
+/**
+ * 404 Not Found Handler
+ */
+const notFoundHandler = (req, res, next) => {
+  ApiResponse.notFound(res, `Route ${req.method} ${req.originalUrl} not found`);
+};
+
+module.exports = {
+  AppError,
+  errorHandler,
+  notFoundHandler
+};

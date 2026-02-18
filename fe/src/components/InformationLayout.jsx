@@ -5,19 +5,30 @@ import Pagination from './InformationComponents/Pagination.jsx';
 
 
 export default function InformationLayout({
+    title,
     filterOptions = [], 
     columns = [], 
     data = [], 
     loading = false,
     error = null,
     pagination = { page: 1, limit: 10, total: 0, totalPages: 0 },
-    onPageChange = () => {},
-    onFilterChange = () => {},
-    onSearch = () => {},
-    onSort = () => {}
+    onPageChange,
+    onFilterChange,
+    onSearch,
+    onSort,
+    children
 }) {
+
     return (
         <div className="min-h-screen">
+            {/* Header with title and action button */}
+            <div className="flex justify-between items-center mb-4">
+                {title && <h1 className="text-2xl font-bold text-gray-800">{title}</h1>}
+                <div className="flex-shrink-0">
+                    {children}
+                </div>
+            </div>
+            
             <TopBar 
                 filterOptions={filterOptions} 
                 onSearch={onSearch}

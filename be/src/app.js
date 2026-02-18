@@ -1,29 +1,41 @@
 const express = require('express');
 const cors = require('cors');
-const errorHandler = require('./middleware/errorHandler');
+const config = require('./config');
 const apiRoutes = require('./routes');
+const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
+const Logger = require('./utils/logger');
 
 const app = express();
 
 // Middleware
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: config.app.corsOrigin,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// API Routes
-app.use('/api', apiRoutes);
+// Request logging middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    Logger.http(req.method, req.path, res.statusCode, duration);
+  });
+  
+  next();
+});
 
 // Health check
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 
-    timestamp: new Date(),
-    uptime: process.uptime()
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: config.app.nodeEnv
   });
 });
 
@@ -32,6 +44,7 @@ app.get('/', (req, res) => {
   res.json({
     message: 'IoT Backend API Server',
     version: '1.0.0',
+    environment: config.app.nodeEnv,
     endpoints: {
       health: '/health',
       api: '/api'
@@ -39,13 +52,11 @@ app.get('/', (req, res) => {
   });
 });
 
+// API Routes
+app.use('/api', apiRoutes);
+
 // 404 handler
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Endpoint not found'
-  });
-});
+app.use(notFoundHandler);
 
 // Error handling
 app.use(errorHandler);
