@@ -1,37 +1,25 @@
 const Alert = require('../models/alertModel');
 const alertService = require('../services/alertService');
+const ApiResponse = require('../utils/response');
+const Logger = require('../utils/logger');
 
 class AlertController {
     // Notification Page: Get all alerts with pagination, search, filters
     static async getAll(req, res, next) {
         try {
-            // Map frontend field names to database column names
-            const orderByMap = {
-                'timestamp': 'created_at',
-                'created_at': 'created_at',
-                'severity': 'severity'
-            };
-            
-            const rawOrderBy = req.query.sortBy || req.query.orderBy || 'created_at';
-            const orderBy = orderByMap[rawOrderBy] || 'created_at';
-            
             const options = {
                 page: parseInt(req.query.page) || 1,
                 limit: parseInt(req.query.limit) || 10,
                 search: req.query.search || '',
                 filterType: req.query.filterType || '',
-                orderBy: orderBy,
-                orderDirection: (req.query.sortOrder || req.query.orderDirection || 'desc').toUpperCase(),
+                orderBy: req.query.sortBy || 'created_at',
+                orderDirection: (req.query.sortOrder || 'desc').toUpperCase(),
             };
 
             const result = await Alert.getAll(options);
-            
-            res.json({
-                success: true,
-                message: 'Get all alerts successfully',
-                data: result
-            });
+            return ApiResponse.success(res, result, 'Get all alerts successfully');
         } catch (error) {
+            Logger.error('Error in getAll:', error);
             next(error);
         }
     }
@@ -40,16 +28,10 @@ class AlertController {
     static async getStatistics(req, res, next) {
         try {
             const { days = 7 } = req.query;
-            
-            // Use service instead of direct model
             const stats = await alertService.getAlertStatistics(parseInt(days));
-
-            res.json({
-                success: true,
-                message: 'Get alert statistics successfully',
-                data: stats
-            });
+            return ApiResponse.success(res, stats, 'Get alert statistics successfully');
         } catch (error) {
+            Logger.error('Error in getStatistics:', error);
             next(error);
         }
     }
@@ -61,18 +43,12 @@ class AlertController {
             const alert = await Alert.getById(id);
 
             if (!alert) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Alert not found'
-                });
+                return ApiResponse.notFound(res, 'Alert not found');
             }
 
-            res.json({
-                success: true,
-                message: 'Get alert successfully',
-                data: alert
-            });
+            return ApiResponse.success(res, alert, 'Get alert successfully');
         } catch (error) {
+            Logger.error('Error in getById:', error);
             next(error);
         }
     }
@@ -84,33 +60,12 @@ class AlertController {
             const deleted = await Alert.delete(id);
 
             if (!deleted) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Alert not found'
-                });
+                return ApiResponse.notFound(res, 'Alert not found');
             }
 
-            res.json({
-                success: true,
-                message: 'Alert deleted successfully'
-            });
+            return ApiResponse.success(res, null, 'Alert deleted successfully');
         } catch (error) {
-            next(error);
-        }
-    }
-
-    // Delete old alerts (Admin only)
-    static async deleteOldAlerts(req, res, next) {
-        try {
-            const { days = 30 } = req.query;
-            const deletedCount = await Alert.deleteOldAlerts(parseInt(days));
-
-            res.json({
-                success: true,
-                message: `Deleted ${deletedCount} old alert records`,
-                deletedCount: deletedCount
-            });
-        } catch (error) {
+            Logger.error('Error in delete:', error);
             next(error);
         }
     }

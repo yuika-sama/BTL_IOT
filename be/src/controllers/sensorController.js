@@ -1,22 +1,14 @@
-const BaseController = require('./baseController');
 const Sensor = require('../models/sensorModel');
-const sensorService = require('../services/SensorService');
 const ApiResponse = require('../utils/response');
 const Logger = require('../utils/logger');
 const config = require('../config');
 
-class SensorController extends BaseController {
-    constructor() {
-        super(sensorService);
-    }
-
+class SensorController {
     // Dashboard: Get latest values for 4 sensors (temperature, humidity, light, dust)
-    getLatestValues = async (req, res, next) => {
+    static async getLatestValues(req, res, next) {
         try {
             const DataSensorModel = require('../models/dataSensorModel');
-            
             const sensorIds = config.sensors;
-
             const latestValues = {};
 
             for (const [type, sensorId] of Object.entries(sensorIds)) {
@@ -38,14 +30,14 @@ class SensorController extends BaseController {
     }
 
     // Get all sensors with pagination, search, filters (Admin only)
-    getAll = async (req, res, next) => {
+    static async getAll(req, res, next) {
         try {
-            const pagination = this.getPaginationParams(req);
-            const filters = this.getFilterParams(req);
-            
             const options = {
-                ...pagination,
+                page: parseInt(req.query.page) || 1,
+                limit: parseInt(req.query.limit) || 10,
                 search: req.query.search || '',
+                sortBy: req.query.sortBy || 'created_at',
+                sortOrder: (req.query.sortOrder || 'desc').toUpperCase(),
                 filters: {
                     device_id: req.query.deviceId || req.query.device_id || undefined,
                     name: req.query.name || undefined
@@ -53,7 +45,6 @@ class SensorController extends BaseController {
             };
 
             const result = await Sensor.getAll(options);
-            
             return ApiResponse.paginated(res, result.data, result.pagination, 'Get all sensors successfully');
         } catch (error) {
             Logger.error('Error in getAll:', error);
@@ -62,7 +53,7 @@ class SensorController extends BaseController {
     }
 
     // Get sensor by ID (Admin only)
-    getById = async (req, res, next) => {
+    static async getById(req, res, next) {
         try {
             const { id } = req.params;
             const sensor = await Sensor.getById(id);
@@ -79,11 +70,10 @@ class SensorController extends BaseController {
     }
 
     // Get sensors by device ID (Admin only)
-    getByDeviceId = async (req, res, next) => {
+    static async getByDeviceId(req, res, next) {
         try {
             const { deviceId } = req.params;
             const sensors = await Sensor.getByDeviceId(deviceId);
-
             return ApiResponse.success(res, sensors, 'Get sensors by device successfully');
         } catch (error) {
             Logger.error('Error in getByDeviceId:', error);
@@ -92,7 +82,7 @@ class SensorController extends BaseController {
     }
 
     // Create new sensor (Admin only)
-    create = async (req, res, next) => {
+    static async create(req, res, next) {
         try {
             const { device_id, name, type, unit, threshold_min, threshold_max } = req.body;
 
@@ -117,13 +107,11 @@ class SensorController extends BaseController {
     }
 
     // Update sensor (Admin only)
-    update = async (req, res, next) => {
+    static async update(req, res, next) {
         try {
             const { id } = req.params;
             const sensorData = req.body;
-
             const sensor = await Sensor.update(id, sensorData);
-
             return ApiResponse.success(res, sensor, 'Sensor updated successfully');
         } catch (error) {
             Logger.error('Error in update:', error);
@@ -132,7 +120,7 @@ class SensorController extends BaseController {
     }
 
     // Delete sensor (Admin only)
-    delete = async (req, res, next) => {
+    static async delete(req, res, next) {
         try {
             const { id } = req.params;
             const deleted = await Sensor.delete(id);
@@ -147,11 +135,6 @@ class SensorController extends BaseController {
             next(error);
         }
     }
-
-    // Override allowed filters
-    getAllowedFilters() {
-        return ['device_id', 'deviceId', 'name'];
-    }
 }
 
-module.exports = new SensorController();
+module.exports = SensorController;

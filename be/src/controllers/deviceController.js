@@ -1,20 +1,14 @@
-const BaseController = require('./baseController');
 const Device = require('../models/deviceModel');
 const ActionHistory = require('../models/actionHistoryModel');
-const deviceService = require('../services/deviceService');
 const socketService = require('../services/socketService');
 const mqttService = require('../services/mqttService');
 const ApiResponse = require('../utils/response');
 const Logger = require('../utils/logger');
 const config = require('../config');
 
-class DeviceController extends BaseController {
-    constructor() {
-        super(deviceService);
-    }
-
+class DeviceController {
     // Dashboard: Get all devices info (only connected devices)
-    getAllDevicesInfo = async (req, res, next) => {
+    static async getAllDevicesInfo(req, res, next) {
         try {
             const devices = await Device.getAllDevicesInfo(true); // Only connected devices
             
@@ -26,38 +20,35 @@ class DeviceController extends BaseController {
     }
 
     // Dashboard: Toggle device status (ON/OFF) - MANUAL MODE
-    toggleStatus = async (req, res, next) => {
-        let actionHistory = null;
-        
+    static async toggleStatus(req, res, next) {
         try {
             const { id } = req.params;
             
+            // Get device and validate
             const device = await Device.getById(id);
             if (!device) {
                 return ApiResponse.notFound(res, 'Device not found');
             }
 
-            // Check if device is connected
             if (!device.is_connected) {
                 return ApiResponse.serviceUnavailable(res, 'Device is not connected');
             }
 
-            // Toggle value: 1 (ON) <-> 0 (OFF)
+            // Calculate new value
             const newValue = device.value === 1 ? 0 : 1;
             const previousValue = device.value;
             
             // Create action history with 'waiting' status
-            actionHistory = await ActionHistory.create({
+            const actionHistory = await ActionHistory.create({
                 device_id: id,
                 command: newValue === 1 ? 'ON' : 'OFF',
                 executor: 'user',
                 status: 'waiting'
             });
             
-            // Set status to WAITING
-            await Device.updateWithCommandStatus(id, { 
-                status: 'waiting'
-            });
+            // Update device status to WAITING and disable auto_toggle
+            await Device.updateWithCommandStatus(id, { status: 'waiting' });
+            await Device.update(id, { auto_toggle: 0 });
             
             // Broadcast WAITING state to frontend
             socketService.broadcastDeviceStatus({
@@ -67,11 +58,7 @@ class DeviceController extends BaseController {
                 timestamp: new Date()
             });
 
-            // QUAN TRỌNG: Khi toggle thủ công, tắt auto_toggle
-            await Device.update(id, { auto_toggle: 0 });
-
-            // Gửi lệnh điều khiển xuống ESP32 qua MQTT với tracking
-            // Map device ID to LED key using config
+            // Send MQTT command
             const ledMapping = {
                 [config.devices.temperature]: 'led_temp',
                 [config.devices.humidity]: 'led_hum',
@@ -85,18 +72,15 @@ class DeviceController extends BaseController {
             }
 
             try {
-                // Send command with tracking (will wait for confirmation from ESP32)
                 await mqttService.publishCommandWithTracking(
                     'abcde1', 
                     ledKey, 
                     newValue, 
                     id,
-                    10000, // 10 second timeout
-                    actionHistory.id // Pass action_history_id for tracking
+                    10000,
+                    actionHistory.id
                 );
 
-                // Response sent immediately after command is published
-                // Actual status update will come via MQTT confirmation
                 return ApiResponse.success(res, {
                     id: id,
                     status: 'waiting',
@@ -107,15 +91,11 @@ class DeviceController extends BaseController {
             } catch (error) {
                 Logger.error('Failed to send command:', error);
                 
-                // Update action history to failed
-                if (actionHistory && actionHistory.id) {
+                // Update to failed state
+                if (actionHistory?.id) {
                     await ActionHistory.updateStatus(actionHistory.id, 'failed');
                 }
-                
-                // Set status to FAILED
-                await Device.updateWithCommandStatus(id, { 
-                    status: 'failed'
-                });
+                await Device.updateWithCommandStatus(id, { status: 'failed' });
                 
                 socketService.broadcastDeviceStatus({
                     device_id: id,
@@ -134,7 +114,7 @@ class DeviceController extends BaseController {
     }
 
     // Toggle auto_toggle for device
-    toggleAutoMode = async (req, res, next) => {
+    static async toggleAutoMode(req, res, next) {
         try {
             const { id } = req.params;
             
@@ -178,25 +158,14 @@ class DeviceController extends BaseController {
     }
 
     // Get all devices with pagination, search, filters (Admin only)
-    getAll = async (req, res, next) => {
+    static async getAll(req, res, next) {
         try {
-            // Map frontend field names to database column names
-            const orderByMap = {
-                'timestamp': 'created_at',
-                'created_at': 'created_at',
-                'name': 'name',
-                'status': 'status'
-            };
-            
-            const rawOrderBy = req.query.sortBy || req.query.orderBy || 'created_at';
-            const orderBy = orderByMap[rawOrderBy] || 'created_at';
-            
             const options = {
                 page: parseInt(req.query.page) || 1,
                 limit: parseInt(req.query.limit) || 10,
                 search: req.query.search || '',
-                orderBy: orderBy,
-                orderDir: (req.query.sortOrder || req.query.orderDirection || 'desc').toUpperCase(),
+                orderBy: req.query.sortBy || 'created_at',
+                orderDir: (req.query.sortOrder || 'desc').toUpperCase(),
                 filter: {
                     status: req.query.status !== undefined ? req.query.status === 'true' : undefined,
                     is_connected: req.query.is_connected !== undefined ? req.query.is_connected === 'true' : undefined,
@@ -205,7 +174,6 @@ class DeviceController extends BaseController {
             };
 
             const result = await Device.getAll(options);
-            
             return ApiResponse.paginated(res, result.data, result.pagination, 'Get all devices successfully');
         } catch (error) {
             Logger.error('Error in getAll:', error);
@@ -214,7 +182,7 @@ class DeviceController extends BaseController {
     }
 
     // Get device by ID (Admin only)
-    getById = async (req, res, next) => {
+    static async getById(req, res, next) {
         try {
             const { id } = req.params;
             const device = await Device.getById(id);
@@ -231,7 +199,7 @@ class DeviceController extends BaseController {
     }
 
     // Create new device (Admin only)
-    create = async (req, res, next) => {
+    static async create(req, res, next) {
         try {
             const { name, status } = req.body;
 
@@ -249,7 +217,7 @@ class DeviceController extends BaseController {
     }
 
     // Update device (Admin only)
-    update = async (req, res, next) => {
+    static async update(req, res, next) {
         try {
             const { id } = req.params;
             const deviceData = req.body;
@@ -264,7 +232,7 @@ class DeviceController extends BaseController {
     }
 
     // Delete device (Admin only)
-    delete = async (req, res, next) => {
+    static async delete(req, res, next) {
         try {
             const { id } = req.params;
             const deleted = await Device.delete(id);
@@ -279,11 +247,6 @@ class DeviceController extends BaseController {
             next(error);
         }
     }
-
-    // Override allowed filters
-    getAllowedFilters() {
-        return ['status', 'is_connected', 'type'];
-    }
 }
 
-module.exports = new DeviceController();
+module.exports = DeviceController;
