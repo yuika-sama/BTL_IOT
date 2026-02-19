@@ -1,25 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { Lightbulb, Loader2 } from 'lucide-react';
+import { Lightbulb, Loader2, WifiOff } from 'lucide-react';
 
 export default function ToggleCard({ 
     deviceName = "Thiết bị 1", 
     initialState = "off",
+    isConnected = true,
     onToggle 
 }) {
-    const [state, setState] = useState(initialState); // "off", "waiting", "on"
+    const [state, setState] = useState(initialState); // "off", "waiting", "on", "disconnected"
 
     // Sync state khi initialState thay đổi (update từ socket)
     useEffect(() => {
         console.log('🎴 ToggleCard state sync:', { 
             deviceName, 
             initialState,
-            currentState: state
+            currentState: state,
+            isConnected
         });
-        setState(initialState);
-    }, [initialState, deviceName]);
+        
+        // Nếu disconnect, set state = disconnected
+        if (!isConnected) {
+            setState("disconnected");
+        } else {
+            setState(initialState);
+        }
+    }, [initialState, deviceName, isConnected]);
 
     const handleToggle = async () => {
-        if (state === "waiting") return; // Không cho toggle khi đang waiting
+        if (state === "waiting" || !isConnected) return; // Không cho toggle khi đang waiting hoặc disconnect
 
         setState("waiting");
 
@@ -34,6 +42,9 @@ export default function ToggleCard({
     };
 
     const getCardStyle = () => {
+        if (!isConnected || state === "disconnected") {
+            return "bg-gray-100 border-2 border-gray-300 opacity-70";
+        }
         if (state === "on") {
             return "bg-gradient-to-br from-yellow-50 to-orange-50 border-2 border-yellow-400";
         }
@@ -41,6 +52,9 @@ export default function ToggleCard({
     };
 
     const getToggleStyle = () => {
+        if (!isConnected || state === "disconnected") {
+            return "bg-gray-400 cursor-not-allowed";
+        }
         if (state === "on") {
             return "bg-blue-500";
         }
@@ -55,6 +69,9 @@ export default function ToggleCard({
     };
 
     const getLightbulbColor = () => {
+        if (!isConnected || state === "disconnected") {
+            return "text-gray-400";
+        }
         if (state === "on") {
             return "text-yellow-500";
         }
@@ -66,21 +83,30 @@ export default function ToggleCard({
             <div className="flex items-center justify-between">
                 {/* Left side - Device name and toggle */}
                 <div className="flex flex-col gap-3">
-                    <span className="text-gray-700 font-medium">{deviceName}</span>
+                    <div className="flex items-center gap-2">
+                        <span className="text-gray-700 font-medium">{deviceName}</span>
+                        {(!isConnected || state === "disconnected") && (
+                            <WifiOff size={16} className="text-red-500" />
+                        )}
+                    </div>
                     
                     {/* Toggle switch or loading */}
                     <div className="flex items-center gap-3">
                         {state === "waiting" ? (
-                            <Loader2 size={20} className="text-gray-500 animate-spin" />
+                            <Loader2 size={20} className="text-blue-500 animate-spin" />
                         ) : (
                             <button
                                 onClick={handleToggle}
+                                disabled={!isConnected || state === "disconnected"}
                                 className={`relative w-14 h-7 rounded-full transition-colors duration-300 ${getToggleStyle()}`}
                             >
                                 <div 
                                     className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-300 ${getToggleThumbStyle()}`}
                                 />
                             </button>
+                        )}
+                        {(!isConnected || state === "disconnected") && (
+                            <span className="text-xs text-red-500">Ngắt kết nối</span>
                         )}
                     </div>
                 </div>
@@ -89,7 +115,7 @@ export default function ToggleCard({
                 <Lightbulb 
                     size={48} 
                     className={`transition-colors duration-300 ${getLightbulbColor()}`}
-                    fill={state === "on" ? "currentColor" : "none"}
+                    fill={state === "on" && isConnected ? "currentColor" : "none"}
                 />
             </div>
         </div>

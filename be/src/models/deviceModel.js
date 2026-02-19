@@ -155,15 +155,14 @@ class Device {
     }
 
     static async getAllDevicesInfo(connectedOnly = false){
-        let query = `SELECT d.*, 
-            (SELECT COUNT(*) FROM sensors WHERE device_id = d.id) as sensor_count
+        let query = `SELECT d.id, d.name, d.value, d.status, d.is_connected, d.auto_toggle
             FROM devices d`;
         
         if (connectedOnly) {
             query += ' WHERE d.is_connected = 1';
         }
         
-        query += ' ORDER BY d.created_at DESC';
+        query += ' ORDER BY d.name ASC';
         
         const [rows] = await db.query(query);
         return rows;

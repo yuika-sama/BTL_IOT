@@ -160,12 +160,13 @@ export default function Dashboard() {
                     const updated = { 
                         ...device, 
                         value: statusUpdate.value !== undefined ? statusUpdate.value : device.value,
-                        status: statusUpdate.status !== undefined ? statusUpdate.status : device.status
+                        status: statusUpdate.status !== undefined ? statusUpdate.status : device.status,
+                        is_connected: statusUpdate.is_connected !== undefined ? statusUpdate.is_connected : device.is_connected
                     };
                     console.log('🔄 Device updated:', {
                         id: device.id,
-                        old: { value: device.value, status: device.status },
-                        new: { value: updated.value, status: updated.status }
+                        old: { value: device.value, status: device.status, is_connected: device.is_connected },
+                        new: { value: updated.value, status: updated.status, is_connected: updated.is_connected }
                     });
                     return updated;
                 }
@@ -281,6 +282,7 @@ export default function Dashboard() {
                                     key={device.id}
                                     deviceName={getDeviceDisplayName(device.name)} 
                                     initialState={getDeviceState(device.value, device.status)}
+                                    isConnected={device.is_connected !== false}
                                     onToggle={() => handleToggleDevice(device.id, device.value, device.status)}
                                 />
                             ))}
