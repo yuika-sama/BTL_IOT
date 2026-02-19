@@ -7,12 +7,22 @@ class AlertController {
     // Notification Page: Get all alerts with pagination, search, filters
     static async getAll(req, res, next) {
         try {
+            // Map frontend sortBy to database column names
+            const sortByMap = {
+                'timestamp': 'created_at',
+                'severity': 'severity',
+                'status': 'status'
+            };
+            
+            const sortBy = req.query.sortBy || 'timestamp';
+            const orderBy = sortByMap[sortBy] || 'created_at';
+            
             const options = {
                 page: parseInt(req.query.page) || 1,
                 limit: parseInt(req.query.limit) || 10,
                 search: req.query.search || '',
                 filterType: req.query.filterType || '',
-                orderBy: req.query.sortBy || 'created_at',
+                orderBy: orderBy,
                 orderDirection: (req.query.sortOrder || 'desc').toUpperCase(),
             };
 

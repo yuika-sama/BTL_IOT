@@ -19,12 +19,24 @@ class DataSensorController {
                 return ApiResponse.badRequest(res, 'No sensor IDs configured in environment variables');
             }
 
+            // Map frontend sortBy to database column names
+            const sortByMap = {
+                'timestamp': 'created_at',
+                'temperature': 'temperature',
+                'humidity': 'humidity',
+                'light': 'light',
+                'dust': 'dust'
+            };
+            
+            const sortBy = req.query.sortBy || 'timestamp';
+            const orderBy = sortByMap[sortBy] || 'created_at';
+            
             const options = {
                 page: parseInt(req.query.page) || 1,
                 limit: parseInt(req.query.limit) || 10,
                 search: req.query.search || '',
                 filterType: req.query.filterType || '',
-                orderBy: req.query.sortBy || 'created_at',
+                orderBy: orderBy,
                 orderDirection: (req.query.sortOrder || 'desc').toUpperCase(),
             };
             
