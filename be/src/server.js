@@ -15,7 +15,7 @@ const io = new Server(server, {
         credentials: true
     },
     transports: ['websocket', 'polling'],
-    allowEIO3: true // Hỗ trợ các phiên bản socket cũ
+    allowEIO3: true
 });
 
 // Khởi tạo MQTT Service và truyền instance io

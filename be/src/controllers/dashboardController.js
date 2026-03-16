@@ -4,7 +4,7 @@ const SENSOR_TYPE_CONDITIONS = {
     temperature: "(LOWER(s.name) LIKE '%temp%' OR LOWER(s.name) LIKE '%nhiet%')",
     humidity: "(LOWER(s.name) LIKE '%hum%' OR LOWER(s.name) LIKE '%am%')",
     light: "(LOWER(s.name) LIKE '%light%' OR LOWER(s.name) LIKE '%anh%' OR LOWER(s.name) LIKE '%ldr%')",
-    dust: "(LOWER(s.name) LIKE '%dust%' OR LOWER(s.name) LIKE '%bui%' OR LOWER(s.name) LIKE '%pm%' OR LOWER(s.name) LIKE '%gas%' OR LOWER(s.name) LIKE '%khi%')"
+    gas: "(LOWER(s.name) LIKE '%gas%' OR LOWER(s.name) LIKE '%khi%')"
 };
 
 
@@ -64,11 +64,11 @@ const getInitialSensorData = async (req, res) => {
                 .reverse();
         };
 
-        const [temperature, humidity, light, dust] = await Promise.all([
+        const [temperature, humidity, light, gas] = await Promise.all([
             loadSeries('temperature'),
             loadSeries('humidity'),
             loadSeries('light'),
-            loadSeries('dust')
+            loadSeries('gas')
         ]);
 
         return res.status(200).json({
@@ -77,7 +77,7 @@ const getInitialSensorData = async (req, res) => {
                 temperature,
                 humidity,
                 light,
-                dust
+                gas
             }
         });
     } catch (error) {
@@ -120,14 +120,14 @@ const getLatestSensorValues = async (req, res) => {
             };
         };
 
-        const [temperature, humidity, light, dust] = await Promise.all([
+        const [temperature, humidity, light, gas] = await Promise.all([
             loadLatest('temperature'),
             loadLatest('humidity'),
             loadLatest('light'),
-            loadLatest('dust')
+            loadLatest('gas')
         ]);
 
-        const timestamps = [temperature.timestamp, humidity.timestamp, light.timestamp, dust.timestamp]
+        const timestamps = [temperature.timestamp, humidity.timestamp, light.timestamp, gas.timestamp]
             .filter(Boolean)
             .sort();
 
@@ -137,7 +137,7 @@ const getLatestSensorValues = async (req, res) => {
                 temperature: temperature.value,
                 humidity: humidity.value,
                 light: light.value,
-                dust: dust.value,
+                gas: gas.value,
                 timestamp: timestamps.length ? timestamps[timestamps.length - 1] : null
             }
         });

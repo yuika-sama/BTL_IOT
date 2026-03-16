@@ -17,7 +17,7 @@ const resolveDeviceCommandPrefix = (deviceName = '') => {
         { prefix: 'TEMP', keywords: ['dev_temp_led', 'temp', 'nhiet do', 'nhiet'] },
         { prefix: 'HUM', keywords: ['dev_hum_led', 'hum', 'do am', 'am'] },
         { prefix: 'LDR', keywords: ['dev_ldr_led', 'ldr', 'light', 'anh sang', 'anh'] },
-        { prefix: 'GAS', keywords: ['dev_gas_led', 'dev_dust_led', 'gas', 'dust', 'bui'] }
+        { prefix: 'GAS', keywords: ['dev_gas_led', 'gas', 'gas', 'khi gas', 'gas'] }
     ];
 
     const matchedRule = mappingRules.find((rule) =>
