@@ -21,14 +21,14 @@ const deviceService = {
     return { success: true, data: { id } };
   },
   toggleStatus: async (deviceId) => {
-    const response = await baseApi.post(`/dashboard/devices/${deviceId}/toggle`);
+    const response = await baseApi.post(`/devices/${deviceId}/toggle`);
     return {
       success: Boolean(response?.success),
       data: response?.data || { id: deviceId },
     };
   },
   toggleAutoMode: async (deviceId) => {
-    const response = await baseApi.post(`/dashboard/devices/${deviceId}/toggle-auto`);
+    const response = await baseApi.post(`/devices/${deviceId}/toggle-auto`);
     return {
       success: Boolean(response?.success),
       data: response?.data || { id: deviceId },

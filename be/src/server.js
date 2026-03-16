@@ -19,6 +19,7 @@ const io = new Server(server, {
 
 // Khởi tạo MQTT Service và truyền instance io
 const mqttService = new MqttService(io);
+app.locals.mqttService = mqttService;
 
 // Lắng nghe kết nối từ
 io.on('connection', (socket) => {
@@ -27,7 +28,9 @@ io.on('connection', (socket) => {
     // Nhận lệnh điều khiển
     socket.on('send_command', (command) => {
         console.log(`🖱️ [UI] User clicked: ${command}`);
-        mqttService.publishControl(command);
+        mqttService.publishControl(command).catch((error) => {
+            console.error('❌ [MQTT] Failed to publish socket command:', error.message);
+        });
     });
 
     const heartbeat = setInterval(() => {

@@ -9,7 +9,7 @@ export default function MainLayout({ children }) {
             <Background />
             
             {/* Content overlay */}
-            <div className="relative z-10 min-h-screen flex flex-col items-center px-4">
+            <div className="relative z-10 min-h-screen flex flex-col items-center px-2">
                 <div>
                     <NavBar />
                 </div>

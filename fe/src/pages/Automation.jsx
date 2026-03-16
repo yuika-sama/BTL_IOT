@@ -109,7 +109,7 @@ export default function Automation() {
     return (
         <MainLayout>
             {/* Socket Connection Status */}
-            <div className="mb-6 flex items-center gap-3 bg-white px-5 py-3 rounded-2xl shadow-md border border-gray-100 w-fit">
+            <div className="mb-6 flex items-center gap-3 bg-white px-5 py-1 rounded-2xl shadow-md border border-gray-100 w-fit">
                 <div className={`w-3 h-3 rounded-full transition-all duration-300 ${
                     isConnected() ? 'bg-green-500 shadow-lg shadow-green-200 animate-pulse' : 'bg-red-500 shadow-lg shadow-red-200'
                 }`}></div>
@@ -224,7 +224,7 @@ export default function Automation() {
             )}
 
             {/* Info Section */}
-            <div className="mt-8 p-7 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-3xl border-2 border-blue-200 shadow-lg">
+            <div className="mt-8 p-7 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-3xl border-2 border-blue-200 shadow-lg mb-8  ">
                 <h3 className="font-bold text-gray-900 text-lg mb-4 flex items-center gap-2">
                     <div className="p-2 bg-blue-100 rounded-xl">
                         <Settings size={20} className="text-blue-600" />

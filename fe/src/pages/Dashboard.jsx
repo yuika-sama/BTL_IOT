@@ -258,7 +258,7 @@ export default function Dashboard() {
     return (
         <MainLayout>
             {/* Socket Connection Status */}
-            <div className="mb-6 flex items-center gap-3 bg-white px-5 py-3 rounded-2xl shadow-md border border-gray-100 w-fit">
+            <div className="mb-6 flex items-center gap-3 bg-white px-5 py-1 rounded-2xl shadow-md border border-gray-100 w-fit">
                 <div className={`w-3 h-3 rounded-full transition-all duration-300 ${
                     isConnected() ? 'bg-green-500 shadow-lg shadow-green-200 animate-pulse' : 'bg-red-500 shadow-lg shadow-red-200'
                 }`}></div>
