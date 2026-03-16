@@ -16,10 +16,8 @@ export default function DataSensor(){
     });
     const [filters, setFilters] = useState({
         search: '',
-        filterType: 'all',
-        sensorType: '',
-        sortBy: 'timestamp',
-        sortOrder: 'desc'
+        filter: 'all',
+        order: 'desc'
     });
 
     const filterOptions = [
@@ -27,7 +25,7 @@ export default function DataSensor(){
         {type: 'temperature', displayText: 'Nhiệt độ'},
         {type: 'humidity', displayText: 'Độ ẩm'},
         {type: 'light', displayText: 'Ánh sáng'},
-        {type: 'dust', displayText: 'Bụi mịn'},
+        {type: 'gas', displayText: 'Khí gas'},
         {type: 'time', displayText: 'Thời gian'},
     ]
 
@@ -44,11 +42,12 @@ export default function DataSensor(){
             const params = {
                 page: pagination.page,
                 limit: pagination.limit,
-                ...filters,
-                filterType: filters.filterType === 'all' ? '' : filters.filterType
+                ...filters
             };
 
             const response = await dataSensorService.getSensorHistory(params);
+
+            console.log(response)
             
             if (response.success) {
                 setData(response.data.data || []);
@@ -70,27 +69,19 @@ export default function DataSensor(){
         setPagination(prev => ({ ...prev, page: newPage }));
     };
 
+    const handleLimitChange = (newLimit) => {
+        setPagination(prev => ({
+            ...prev,
+            page: 1,
+            limit: newLimit
+        }));
+    };
+
     const handleFilterChange = (filterType) => {
-        // Xác định sortBy dựa trên filterType mới
-        let sortBy = 'timestamp'; // Mặc định sắp xếp theo thời gian
-        
-        if (filterType !== 'all' && filterType !== 'time') {
-            const sortByMapping = {
-                'name': 'sensor_name',
-                'temperature': 'temperature',
-                'humidity': 'humidity',
-                'light': 'light',
-                'dust': 'dust'
-            };
-            sortBy = sortByMapping[filterType] || 'timestamp';
-        }
-        
         setFilters(prev => ({ 
             ...prev, 
-            filterType: filterType,
-            sortBy: sortBy
+            filter: filterType
         }));
-        console.log('Filter changed to:', filterType);
         setPagination(prev => ({ ...prev, page: 1 }));
     };
 
@@ -98,31 +89,15 @@ export default function DataSensor(){
         setFilters(prev => ({ 
             ...prev, 
             search: searchValue,
-            filterType: filterType || prev.filterType
+            filter: filterType || prev.filter
         }));
         setPagination(prev => ({ ...prev, page: 1 }));
     };
 
     const handleSort = (sortOrder) => {
-        // Xác định sortBy dựa trên filterType hiện tại
-        let sortBy = 'timestamp'; // Mặc định sắp xếp theo thời gian
-        
-        // Nếu filterType không phải 'all' hoặc 'time', có thể sort theo field đó
-        if (filters.filterType !== 'all' && filters.filterType !== 'time') {
-            // Mapping filterType sang sortBy field cho sensor data
-            const sortByMapping = {
-                'temperature': 'temperature',
-                'humidity': 'humidity',
-                'light': 'light',
-                'dust': 'dust'
-            };
-            sortBy = sortByMapping[filters.filterType] || 'timestamp';
-        }
-        
         setFilters(prev => ({ 
             ...prev, 
-            sortOrder: sortOrder,
-            sortBy: sortBy
+            order: sortOrder
         }));
     };
 
@@ -130,12 +105,10 @@ export default function DataSensor(){
         { key: 'id',header: 'ID', accessor: 'id', cellClassName:'font-medium'},
         { key: 'temperature', header: 'Nhiệt độ', accessor: 'temperature', render: (value) => (<span className="font-medium text-red-500">{formatNumber(value)}℃</span>)},
         { key: 'humidity', header: 'Độ ẩm', accessor: 'humidity', render: (value) => (<span className="font-medium text-blue-400">{formatNumber(value)}%</span>)},
-        { key: 'light', header: 'Ánh sáng', accessor: 'light', render: (value) => (<span className="font-medium text-yellow-500">{formatNumber(value)} Lux</span>)},
-        { key: 'dust', header: 'Bụi mịn', accessor: 'dust', render: (value) => (<span className="font-medium text-gray-400">{formatNumber(value)    }µg/m³</span>)},
+        { key: 'light', header: 'Ánh sáng', accessor: 'light', render: (value) => (<span className="font-medium text-yellow-500">{formatNumber(value)} %(Lux)</span>)},
+        { key: 'gas', header: 'Khí gas', accessor: 'gas', render: (value) => (<span className="font-medium text-gray-400">{formatNumber(value)} %(ppm)</span>)},
         { key: 'timestamp', header: 'Thời gian', accessor: 'timestamp', cellClassName:'', render: (value) => (<span className="text-sm text-gray-500">{new Date(value).toLocaleString()}</span>)},
     ]
-    console.log(data)
-    
     return(
         <MainLayout>
             <InformationLayout
@@ -146,6 +119,7 @@ export default function DataSensor(){
                 error={error}
                 pagination={pagination}
                 onPageChange={handlePageChange}
+                onLimitChange={handleLimitChange}
                 onFilterChange={handleFilterChange}
                 onSearch={handleSearch}
                 onSort={handleSort}

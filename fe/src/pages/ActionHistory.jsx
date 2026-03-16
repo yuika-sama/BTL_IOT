@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import InformationLayout from '../components/InformationLayout.jsx';
 import MainLayout from '../components/MainLayout.jsx';
 import actionHistoryService from '../services/actionHistoryService.jsx';
-import {formatName, formatTime} from '../utils/formatter.js';
+import { formatTime } from '../utils/formatter.js';
 
 export default function ActionHistory(){
     const [data, setData] = useState([]);
@@ -16,12 +16,8 @@ export default function ActionHistory(){
     });
     const [filters, setFilters] = useState({
         search: '',
-        filterType: 'all',
-        deviceId: '',
-        action: '',
-        status: '',
-        sortBy: 'timestamp',
-        sortOrder: 'desc'
+        filter: 'all',
+        order: 'desc'
     });
 
     const filterOptions = [
@@ -46,8 +42,7 @@ export default function ActionHistory(){
             const params = {
                 page: pagination.page,
                 limit: pagination.limit,
-                ...filters,
-                filterType: filters.filterType === 'all' ? '' : filters.filterType
+                ...filters
             };
 
             const response = await actionHistoryService.getAll(params);
@@ -72,27 +67,19 @@ export default function ActionHistory(){
         setPagination(prev => ({ ...prev, page: newPage }));
     };
 
+    const handleLimitChange = (newLimit) => {
+        setPagination(prev => ({
+            ...prev,
+            page: 1,
+            limit: newLimit
+        }));
+    };
+
     const handleFilterChange = (filterType) => {
-        // Xác định sortBy dựa trên filterType mới
-        let sortBy = 'timestamp'; // Mặc định sắp xếp theo thời gian
-        
-        if (filterType !== 'all' && filterType !== 'time') {
-            const sortByMapping = {
-                'name': 'device_name',
-                'action': 'value',
-                'status': 'status',
-                'user': 'executor',
-                
-            };
-            sortBy = sortByMapping[filterType] || 'timestamp';
-        }
-        
         setFilters(prev => ({ 
             ...prev, 
-            filterType: filterType,
-            sortBy: sortBy
+            filter: filterType
         }));
-        console.log('Filter changed to:', filterType);
         setPagination(prev => ({ ...prev, page: 1 }));
     };
 
@@ -100,35 +87,17 @@ export default function ActionHistory(){
         setFilters(prev => ({ 
             ...prev, 
             search: searchValue,
-            filterType: filterType || prev.filterType
+            filter: filterType || prev.filter
         }));
         setPagination(prev => ({ ...prev, page: 1 }));
     };
 
     const handleSort = (sortOrder) => {
-        // Xác định sortBy dựa trên filterType hiện tại
-        let sortBy = 'timestamp'; // Mặc định sắp xếp theo thời gian
-        
-        // Nếu filterType không phải 'all' hoặc 'time', có thể sort theo field đó
-        if (filters.filterType !== 'all' && filters.filterType !== 'time') {
-            // Mapping filterType sang sortBy field
-            const sortByMapping = {
-                'name': 'device_name',
-                'action': 'value',
-                'status': 'status',
-                'user': 'executor'
-            };
-            sortBy = sortByMapping[filters.filterType] || 'timestamp';
-        }
-        
         setFilters(prev => ({ 
             ...prev, 
-            sortOrder: sortOrder,
-            sortBy: sortBy
+            order: sortOrder
         }));
     };
-
-    console.log(data)
 
     const renderAction = (value, row) => {
         // Kiểm tra nếu là hành động auto_toggle
@@ -222,6 +191,7 @@ export default function ActionHistory(){
                 error={error}
                 pagination={pagination}
                 onPageChange={handlePageChange}
+                onLimitChange={handleLimitChange}
                 onFilterChange={handleFilterChange}
                 onSearch={handleSearch}
                 onSort={handleSort}

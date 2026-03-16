@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import MainLayout from '../components/MainLayout.jsx';
-import { Bell, Power, Activity, TrendingUp, Calendar, BarChart3 } from 'lucide-react';
+import { Bell, Power, Activity, TrendingUp, Calendar, BarChart3, ChartColumn } from 'lucide-react';
 import { alertService, actionHistoryService } from '../services';
 
 export default function Statistics() {
@@ -13,13 +13,8 @@ export default function Statistics() {
     });
     
     const [actionCount, setActionCount] = useState({
-        total_count: 0,
         on_count: 0,
-        off_count: 0,
-        enable_auto_count: 0,
-        disable_auto_count: 0,
-        success_count: 0,
-        failed_count: 0
+        off_count: 0
     });
 
     const [alertCountByDays, setAlertCountByDays] = useState([]);
@@ -100,14 +95,16 @@ export default function Statistics() {
     };
 
     const getTotalActionsByDays = () => {
-        return actionCountByDays.reduce((sum, day) => sum + (day.total_count || 0), 0);
+        return actionCountByDays.reduce((sum, day) => {
+            return sum + Number(day.on_count || 0) + Number(day.off_count || 0);
+        }, 0);
     };
 
     const getMaxValue = (data, key) => {
         return Math.max(...data.map(d => d[key] || 0), 0);
     };
 
-    if (loading && alertCount.total_count === 0 && actionCount.total_count === 0) {
+    if (loading && alertCount.total_count === 0 && actionCount.on_count + actionCount.off_count === 0) {
         return (
             <MainLayout>
                 <div className="container mx-auto px-4 py-8">
@@ -130,7 +127,8 @@ export default function Statistics() {
                     <div className="flex items-center justify-between">
                         <div>
                             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                                📊 Thống kê hệ thống
+                                <ChartColumn size={24} className="text-blue-500" />
+                                Thống kê hệ thống
                             </h1>
                             <p className="text-gray-600">
                                 Theo dõi hoạt động và cảnh báo của hệ thống IoT
@@ -247,27 +245,11 @@ export default function Statistics() {
                                 <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
                                     <div className="flex items-center gap-2">
                                         <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                                        <span className="text-sm font-medium text-gray-700">Thành công</span>
+                                        <span className="text-sm font-medium text-gray-700">Tổng số</span>
                                     </div>
-                                    <span className="text-lg font-bold text-blue-600">{actionCount.success_count}</span>
+                                    <span className="text-lg font-bold text-blue-600">{actionCount.on_count + actionCount.off_count}</span>
                                 </div>
                             </div>
-
-                            {(actionCount.enable_auto_count > 0 || actionCount.disable_auto_count > 0) && (
-                                <div className="mt-4 pt-4 border-t border-gray-200">
-                                    <div className="text-xs text-gray-600 mb-2 font-medium">Chế độ tự động:</div>
-                                    <div className="flex gap-4">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-xs text-gray-600">Bật:</span>
-                                            <span className="text-sm font-semibold text-purple-600">{actionCount.enable_auto_count}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-xs text-gray-600">Tắt:</span>
-                                            <span className="text-sm font-semibold text-gray-600">{actionCount.disable_auto_count}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     </div>
                 </div>
@@ -322,9 +304,9 @@ export default function Statistics() {
                                                         {formatDate(day.date)}
                                                     </span>
                                                     <div className="flex items-center gap-2">
-                                                        <span className="text-xs text-red-600">H:{day.high_count || 0}</span>
+                                                        {/* <span className="text-xs text-red-600">H:{day.high_count || 0}</span>
                                                         <span className="text-xs text-yellow-600">M:{day.medium_count || 0}</span>
-                                                        <span className="text-xs text-blue-600">L:{day.low_count || 0}</span>
+                                                        <span className="text-xs text-blue-600">L:{day.low_count || 0}</span> */}
                                                         <span className="font-bold text-gray-900">{day.total_count || 0}</span>
                                                     </div>
                                                 </div>
@@ -357,8 +339,12 @@ export default function Statistics() {
                                     </div>
                                 ) : (
                                     actionCountByDays.map((day, index) => {
-                                        const maxTotal = getMaxValue(actionCountByDays, 'total_count');
-                                        const percentage = maxTotal > 0 ? (day.total_count / maxTotal) * 100 : 0;
+                                        const dayTotal = Number(day.on_count || 0) + Number(day.off_count || 0);
+                                        const maxTotal = Math.max(
+                                            ...actionCountByDays.map((item) => Number(item.on_count || 0) + Number(item.off_count || 0)),
+                                            0
+                                        );
+                                        const percentage = maxTotal > 0 ? (dayTotal / maxTotal) * 100 : 0;
                                         
                                         return (
                                             <div key={index} className="space-y-1">
@@ -369,7 +355,7 @@ export default function Statistics() {
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-xs text-green-600">ON:{day.on_count || 0}</span>
                                                         <span className="text-xs text-gray-600">OFF:{day.off_count || 0}</span>
-                                                        <span className="font-bold text-gray-900">{day.total_count || 0}</span>
+                                                        <span className="font-bold text-gray-900">{dayTotal}</span>
                                                     </div>
                                                 </div>
                                                 <div className="w-full bg-gray-200 rounded-full h-2">

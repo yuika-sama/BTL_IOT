@@ -12,13 +12,8 @@ export default function DailyStatsCard() {
     });
     
     const [actionCount, setActionCount] = useState({
-        total_count: 0,
         on_count: 0,
-        off_count: 0,
-        enable_auto_count: 0,
-        disable_auto_count: 0,
-        success_count: 0,
-        failed_count: 0
+        off_count: 0
     });
 
     const [loading, setLoading] = useState(true);
@@ -68,7 +63,7 @@ export default function DailyStatsCard() {
         return `${day}/${month}/${year}`;
     };
 
-    if (loading && alertCount.total_count === 0 && actionCount.total_count === 0) {
+    if (loading && alertCount.total_count === 0 && actionCount.on_count + actionCount.off_count === 0) {
         return (
             <div className="bg-white rounded-3xl p-6 shadow-lg border border-gray-100">
                 <div className="flex justify-center items-center py-8">
@@ -162,27 +157,10 @@ export default function DailyStatsCard() {
                         </div>
                         <div className="flex justify-between items-center">
                             <span className="text-xs text-gray-600">Thành công:</span>
-                            <span className="text-sm font-semibold text-blue-600">{actionCount.success_count}</span>
+                            <span className="text-sm font-semibold text-blue-600">{actionCount.on_count + actionCount.off_count}</span>
                         </div>
                     </div>
                 </div>
-                
-                {/* Auto toggle stats */}
-                {(actionCount.enable_auto_count > 0 || actionCount.disable_auto_count > 0) && (
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                        <div className="text-xs text-gray-600 mb-2">Chế độ tự động:</div>
-                        <div className="flex gap-4">
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs text-gray-600">Bật:</span>
-                                <span className="text-sm font-semibold text-purple-600">{actionCount.enable_auto_count}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs text-gray-600">Tắt:</span>
-                                <span className="text-sm font-semibold text-gray-600">{actionCount.disable_auto_count}</span>
-                            </div>
-                        </div>
-                    </div>
-                )}
             </div>
         </div>
     );

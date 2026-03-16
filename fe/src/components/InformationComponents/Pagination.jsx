@@ -6,10 +6,13 @@ export default function Pagination({
     totalPages = 1, 
     totalItems = 0,
     itemsPerPage = 10,
-    onPageChange 
+    onPageChange,
+    onLimitChange,
+    limitOptions = [5, 10, 20, 50, 100]
 }) {
-    const startItem = (currentPage - 1) * itemsPerPage + 1;
-    const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+    const hasItems = totalItems > 0;
+    const startItem = hasItems ? (currentPage - 1) * itemsPerPage + 1 : 0;
+    const endItem = hasItems ? Math.min(currentPage * itemsPerPage, totalItems) : 0;
 
     const getPageNumbers = () => {
         const pages = [];
@@ -55,11 +58,34 @@ export default function Pagination({
         }
     };
 
+    const handleLimitChange = (e) => {
+        const nextLimit = Number(e.target.value);
+        if (!Number.isNaN(nextLimit) && nextLimit > 0 && nextLimit !== itemsPerPage) {
+            onLimitChange?.(nextLimit);
+        }
+    };
+
     return (
-        <div className="flex items-center justify-between mt-4 px-8 py-5 bg-white border border-gray-100 rounded-3xl shadow-lg transition-shadow duration-300 hover:shadow-xl">
+        <div className="flex items-center justify-between mt-4 mb-8 px-8 py-5 bg-white border border-gray-100 rounded-3xl shadow-lg transition-shadow duration-300 hover:shadow-xl">
             {/* Info text */}
-            <div className="text-sm font-medium text-gray-600 bg-gray-50 px-4 py-2 rounded-full">
-                Hiển thị <span className="font-bold text-blue-600">{startItem}-{endItem}</span> của <span className="font-bold text-blue-600">{totalItems}</span> bản ghi
+            <div className="flex items-center gap-3">
+                <div className="text-sm font-medium text-gray-600 bg-gray-50 px-4 py-2 rounded-full">
+                    Hiển thị <span className="font-bold text-blue-600">{startItem}-{endItem}</span> của <span className="font-bold text-blue-600">{totalItems}</span> bản ghi
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <span>Số dòng/trang</span>
+                    <select
+                        value={itemsPerPage}
+                        onChange={handleLimitChange}
+                        className="px-3 py-2 border border-gray-200 rounded-xl bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                        {limitOptions.map((option) => (
+                            <option key={option} value={option}>
+                                {option}
+                            </option>
+                        ))}
+                    </select>
+                </div>
             </div>
 
             {/* Pagination controls */}

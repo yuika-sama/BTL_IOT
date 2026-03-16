@@ -5,6 +5,7 @@ import ToggleCard from '../components/ToggleCard.jsx';
 import Chart from '../components/Chart.jsx';
 import { useSocket } from '../hooks/useSocket.jsx';
 import { deviceService, dataSensorService } from '../services';
+import { formatName, formatNumber } from '../utils/formatter.js';
 
 export default function Dashboard() {
     // State cho sensor data realtime
@@ -12,14 +13,14 @@ export default function Dashboard() {
         temperature: 0,
         humidity: 0,
         light: 0,
-        dust: 0
+        gas: 0
     });
 
     // State cho chart data
     const [temperatureData, setTemperatureData] = useState([]);
     const [humidityData, setHumidityData] = useState([]);
     const [lightData, setLightData] = useState([]);
-    const [dustData, setDustData] = useState([]);
+    const [gasData, setGasData] = useState([]);
 
     // State cho devices
     const [devices, setDevices] = useState([]);
@@ -38,60 +39,34 @@ export default function Dashboard() {
     // Fetch dữ liệu ban đầu cho biểu đồ
     const fetchInitialChartData = async () => {
         try {
-            console.log('📊 Fetching initial chart data...');
-            const response = await dataSensorService.getInitialChartData({ limit: 20 });
-            
-            console.log('📊 API Response:', response);
-            
-            // baseApi interceptor đã unwrap response.data, nên response là { success, data }
-            if (response && response.success) {
-                const { temperature, humidity, light, dust } = response.data;
-                
-                console.log('📊 Chart data received:', {
-                    temperature: temperature?.length || 0,
-                    humidity: humidity?.length || 0,
-                    light: light?.length || 0,
-                    dust: dust?.length || 0
-                });
-                
-                // Format data cho chart (đã sorted từ cũ đến mới)
-                setTemperatureData(temperature || []);
-                setHumidityData(humidity || []);
-                setLightData(light || []);
-                setDustData(dust || []);
-                
-                // Set giá trị hiện tại từ điểm dữ liệu mới nhất
-                if (temperature?.length > 0) {
-                    setSensorData(prev => ({ 
-                        ...prev, 
-                        temperature: temperature[temperature.length - 1].value 
-                    }));
-                }
-                if (humidity?.length > 0) {
-                    setSensorData(prev => ({ 
-                        ...prev, 
-                        humidity: humidity[humidity.length - 1].value 
-                    }));
-                }
-                if (light?.length > 0) {
-                    setSensorData(prev => ({ 
-                        ...prev, 
-                        light: light[light.length - 1].value 
-                    }));
-                }
-                if (dust?.length > 0) {
-                    setSensorData(prev => ({ 
-                        ...prev, 
-                        dust: dust[dust.length - 1].value 
-                    }));
-                }
-                
-                setChartDataLoaded(true);
-                console.log('✅ Initial chart data loaded successfully');
-            } else {
-                console.warn('⚠️ Response data structure unexpected:', response);
-                setChartDataLoaded(true);
+            const [initialResponse, latestResponse] = await Promise.all([
+                dataSensorService.getInitialChartData(20),
+                dataSensorService.getLatestValues()
+            ]);
+
+            if (initialResponse?.success) {
+                const temperature = initialResponse.data?.temperature || [];
+                const humidity = initialResponse.data?.humidity || [];
+                const light = initialResponse.data?.light || [];
+                const gas = initialResponse.data?.gas || [];
+
+                setTemperatureData(temperature);
+                setHumidityData(humidity);
+                setLightData(light);
+                setGasData(gas);
             }
+
+            if (latestResponse?.success) {
+                setSensorData(prev => ({
+                    ...prev,
+                    temperature: latestResponse.data.temperature ?? prev.temperature,
+                    humidity: latestResponse.data.humidity ?? prev.humidity,
+                    light: latestResponse.data.light ?? prev.light,
+                    gas: latestResponse.data.gas ?? prev.gas
+                }));
+            }
+
+            setChartDataLoaded(true);
         } catch (error) {
             console.error('❌ Error fetching initial chart data:', error);
             setChartDataLoaded(true); // Still mark as loaded to continue
@@ -202,10 +177,18 @@ export default function Dashboard() {
 
             // Call API
             const response = await deviceService.toggleStatus(deviceId);
-            
-            console.log('✅ Device toggled:', response);
-            
-            // Update sẽ được nhận qua socket
+
+            if (response?.success) {
+                setDevices(prev => prev.map(device => 
+                    device.id === deviceId
+                        ? {
+                            ...device,
+                            value: response.data?.value ?? device.value,
+                            status: response.data?.status ?? 'success'
+                        }
+                        : device
+                ));
+            }
         } catch (error) {
             console.error('❌ Error toggling device:', error);
             // Revert về trạng thái cũ nếu lỗi
@@ -238,6 +221,37 @@ export default function Dashboard() {
         return names[deviceName] || deviceName;
     };
 
+    const formatDeviceDisplayName = (deviceName) => {
+        const displayName = getDeviceDisplayName(deviceName || '');
+        return formatName(String(displayName || 'Thiết bị'));
+    };
+
+    const normalizeChartSeries = (series = []) => {
+        return (Array.isArray(series) ? series : [])
+            .filter((item) => item?.timestamp)
+            .map((item) => ({
+                timestamp: item.timestamp,
+                value: Number(item.value)
+            }))
+            .filter((item) => !Number.isNaN(item.value));
+    };
+
+    const formattedSensorData = {
+        temperature: formatNumber(sensorData.temperature),
+        humidity: formatNumber(sensorData.humidity),
+        light: formatNumber(sensorData.light),
+        gas: formatNumber(sensorData.gas)
+    };
+
+    const formattedTemperatureData = normalizeChartSeries(temperatureData);
+    const formattedHumidityData = normalizeChartSeries(humidityData);
+    const formattedLightData = normalizeChartSeries(lightData);
+    const formattedGasData = normalizeChartSeries(gasData);
+    const formattedDevices = (Array.isArray(devices) ? devices : []).map((device) => ({
+        ...device,
+        displayName: formatDeviceDisplayName(device.name)
+    }));
+
 
     // console.log('🔄 Dashboard rendered with devices:', devices);
 
@@ -260,10 +274,10 @@ export default function Dashboard() {
                 <div className="space-y-6">
                     {/* InforCard với realtime data */}
                     <InforCard 
-                        temperature={sensorData.temperature} 
-                        humidity={sensorData.humidity} 
-                        light={sensorData.light} 
-                        dust={sensorData.dust} 
+                        temperature={formattedSensorData.temperature} 
+                        humidity={formattedSensorData.humidity} 
+                        light={formattedSensorData.light} 
+                        gas={formattedSensorData.gas} 
                     />
 
                     {/* Grid 2x2 ToggleCards */}
@@ -277,10 +291,10 @@ export default function Dashboard() {
                         </div>
                     ) : (
                         <div className="grid grid-cols-2 gap-4">
-                            {devices.map((device) => (
+                            {formattedDevices.map((device) => (
                                 <ToggleCard 
                                     key={device.id}
-                                    deviceName={getDeviceDisplayName(device.name)} 
+                                    deviceName={device.name.toLowerCase().charAt(0).toUpperCase() + device.name.slice(1)} 
                                     initialState={getDeviceState(device.value, device.status)}
                                     isConnected={device.is_connected !== false}
                                     onToggle={() => handleToggleDevice(device.id, device.value, device.status)}
@@ -294,38 +308,38 @@ export default function Dashboard() {
                 <div className="lg:col-span-2 space-y-4">
                     {/* Chart 1 - Ánh sáng & Bụi mịn */}
                     <Chart 
-                        data1={lightData} 
-                        data2={dustData} 
+                        data1={formattedLightData} 
+                        data2={formattedGasData} 
                         color1="#fbbf24" 
                         color2="#9ca3af" 
                         label1="Ánh sáng" 
-                        label2="Bụi mịn" 
-                        unit1="lux" 
-                        unit2="PM2.5" 
+                        label2="Khí gas" 
+                        unit1="%(lux)" 
+                        unit2="%(ppm)" 
                         min1={0} 
-                        max1={700} 
+                        max1={100} 
                         min2={0} 
                         max2={100} 
-                        title="Ánh sáng & bụi mịn" 
-                        subtitle="Light Intensity & Dust trends (Real-time)" 
+                        title="Ánh sáng & khí gas" 
+                        subtitle="Light Intensity & Gas Levels" 
                     />
 
                     {/* Chart 2 - Nhiệt độ & Độ ẩm */}
                     <Chart 
-                        data1={temperatureData} 
-                        data2={humidityData}
+                        data1={formattedTemperatureData} 
+                        data2={formattedHumidityData}
                         color1="#22c55e" 
                         color2="blue" 
                         label1="Nhiệt độ"
                         label2="Độ ẩm"
                         unit1="°C"
                         unit2="%"
-                        min1={20}
-                        max1={30}
-                        min2={40}
-                        max2={90}
+                        min1={0}
+                        max1={100}
+                        min2={0}
+                        max2={100}
                         title="Nhiệt độ & độ ẩm"
-                        subtitle="Temperature & Humidity trends (Real-time)"
+                        subtitle="Temperature & Humidity trends"
                     />
                 </div>
             </div>

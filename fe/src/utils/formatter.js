@@ -1,7 +1,10 @@
 export function formatNumber(value) {
+  if (value === null || value === undefined || isNaN(value)) {
+    return 0;
+  }
     return new Intl.NumberFormat('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1  ,
     }).format(value);
 }
 export function formatName(name) {

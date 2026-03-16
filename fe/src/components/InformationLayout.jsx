@@ -13,6 +13,7 @@ export default function InformationLayout({
     error = null,
     pagination = { page: 1, limit: 10, total: 0, totalPages: 0 },
     onPageChange,
+    onLimitChange,
     onFilterChange,
     onSearch,
     onSort,
@@ -72,6 +73,7 @@ export default function InformationLayout({
                             totalItems={pagination.total} 
                             itemsPerPage={pagination.limit} 
                             onPageChange={onPageChange} 
+                            onLimitChange={onLimitChange}
                         />
                     </div>
                 )}

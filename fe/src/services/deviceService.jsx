@@ -1,6 +1,12 @@
+import baseApi from './baseApi.jsx';
+
 const deviceService = {
   getAllDevicesInfo: async () => {
-    return { success: true, data: [] };
+    const response = await baseApi.get('/dashboard/devices');
+    return {
+      success: Boolean(response?.success),
+      data: Array.isArray(response?.data) ? response.data : [],
+    };
   },
   getAll: async (params = {}) => {
     return { success: true, data: { devices: [], pagination: { page: 1, limit: 10, totalPages: 0, totalItems: 0 } } };
@@ -15,10 +21,18 @@ const deviceService = {
     return { success: true, data: { id } };
   },
   toggleStatus: async (deviceId) => {
-    return { success: true, data: { id: deviceId, status: 'UNKNOWN' } };
+    const response = await baseApi.post(`/dashboard/devices/${deviceId}/toggle`);
+    return {
+      success: Boolean(response?.success),
+      data: response?.data || { id: deviceId },
+    };
   },
   toggleAutoMode: async (deviceId) => {
-    return { success: true, data: { id: deviceId, autoMode: false } };
+    const response = await baseApi.post(`/dashboard/devices/${deviceId}/toggle-auto`);
+    return {
+      success: Boolean(response?.success),
+      data: response?.data || { id: deviceId },
+    };
   }
 };
 

@@ -1,7 +1,7 @@
 import React, {useState, useEffect} from 'react'
 import { Thermometer, Wind, Droplets, Sun, Cloud} from 'lucide-react';
 
-export default function InforCard({temperature, humidity, light, dust}) {
+export default function InforCard({temperature, humidity, light, gas}) {
     const [currentTime, setCurrentTime] = useState(new Date());
 
     useEffect(() => {
@@ -71,7 +71,7 @@ export default function InforCard({temperature, humidity, light, dust}) {
                     </div>
                     <div>
                         <div className="text-xs text-gray-500">Ánh sáng</div>
-                        <div className="font-semibold text-gray-900">{light}lm</div>
+                        <div className="font-semibold text-gray-900">{light}%</div>
                     </div>
                 </div>
 
@@ -80,8 +80,8 @@ export default function InforCard({temperature, humidity, light, dust}) {
                         <Wind size={16} className="text-gray-500" />
                     </div>
                     <div>
-                        <div className="text-xs text-gray-500">Bụi mịn</div>
-                        <div className="font-semibold text-gray-900">{dust}μm</div>
+                        <div className="text-xs text-gray-500">Khí gas</div>
+                        <div className="font-semibold text-gray-900">{gas}%</div>
                     </div>
                 </div>
             </div>

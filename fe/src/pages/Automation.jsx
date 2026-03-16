@@ -60,8 +60,19 @@ export default function Automation() {
 
             // Call API
             const response = await deviceService.toggleAutoMode(deviceId);
-            
-            console.log('✅ Automation mode toggled:', response);
+
+            if (response?.success) {
+                setDevices(prev => prev.map(device =>
+                    device.id === deviceId
+                        ? {
+                            ...device,
+                            auto_toggle: response.data?.auto_toggle ?? device.auto_toggle,
+                            value: response.data?.value ?? device.value,
+                            status: response.data?.status ?? device.status
+                        }
+                        : device
+                ));
+            }
         } catch (error) {
             console.error('❌ Error toggling automation mode:', error);
             // Revert về trạng thái cũ nếu lỗi
@@ -79,7 +90,7 @@ export default function Automation() {
             'dev_temp_led': { icon: <Lightbulb size={32} />, color: 'text-red-500' },
             'dev_hum_led': { icon: <Lightbulb size={32} />, color: 'text-blue-500' },
             'dev_ldr_led': { icon: <Lightbulb size={32} />, color: 'text-yellow-500' },
-            'dev_dust_led': { icon: <Lightbulb size={32} />, color: 'text-gray-500' },
+            'dev_gas_led': { icon: <Lightbulb size={32} />, color: 'text-gray-500' },
         };
         return icons[deviceName] || { icon: <Settings size={32} />, color: 'text-gray-400' };
     };
@@ -90,7 +101,7 @@ export default function Automation() {
             'dev_temp_led': 'Nhiệt độ LED',
             'dev_hum_led': 'Độ ẩm LED',
             'dev_ldr_led': 'Ánh sáng LED',
-            'dev_dust_led': 'Bụi mịn LED',
+            'dev_gas_led': 'Khí gas LED',
         };
         return names[deviceName] || deviceName;
     };
@@ -227,11 +238,11 @@ export default function Automation() {
                     </li>
                     <li className="flex items-start gap-3 p-3 bg-white rounded-xl shadow-sm">
                         <span className="text-blue-600 mt-1 font-bold">•</span>
-                        <span><strong className="text-gray-900">Chế độ Thủ công:</strong> Bạn điều khiển hoàn toàn thiết bị từ Dashboard</span>
+                        <span><strong className="text-gray-900">Chế độ Thủ công:</strong> Điều khiển hoàn toàn thiết bị từ Dashboard</span>
                     </li>
                     <li className="flex items-start gap-3 p-3 bg-white rounded-xl shadow-sm">
                         <span className="text-blue-600 mt-1 font-bold">•</span>
-                        <span>Khi bạn điều khiển thiết bị thủ công, chế độ tự động sẽ tự động tắt</span>
+                        <span>Khi điều khiển thiết bị thủ công, chế độ tự động sẽ tự động tắt</span>
                     </li>
                 </ul>
             </div>

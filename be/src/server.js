@@ -3,33 +3,42 @@ const { Server } = require('socket.io');
 const app = require('./app');
 const MqttService = require('./services/mqttService');
 
-const PORT = process.env.PORT || 5000;
+const PORT = 5000;
 const server = http.createServer(app);
 
-// Khởi tạo Socket.io
+// Khởi tạo Socket.io với CORS
 const io = new Server(server, {
     cors: {
-        origin: "*", // Trong thực tế nên giới hạn domain frontend
-        methods: ["GET", "POST"]
-    }
+        origin: "*",
+        methods: ["GET", "POST"],
+        credentials: true
+    },
+    transports: ['websocket', 'polling'],
+    allowEIO3: true // Hỗ trợ các phiên bản socket cũ
 });
 
-// Khởi tạo MQTT Service
+// Khởi tạo MQTT Service và truyền instance io
 const mqttService = new MqttService(io);
 
+// Lắng nghe kết nối từ
 io.on('connection', (socket) => {
-    console.log(`🔌 New Client Connected: ${socket.id}`);
+    console.log(`🔌 [Socket.io] New Client Connected: ${socket.id}`);
 
-    // Nhận lệnh điều khiển từ Frontend
-    socket.on('control_device', (command) => {
-        mqttService.sendCommand(command);
+    // Nhận lệnh điều khiển
+    socket.on('send_command', (command) => {
+        console.log(`🖱️ [UI] User clicked: ${command}`);
+        mqttService.publishControl(command);
     });
 
+    const heartbeat = setInterval(() => {
+        socket.emit('heartbeat', { time: new Date().getTime() });
+    }, 10000);
+
     socket.on('disconnect', () => {
-        console.log('❌ Client Disconnected');
+        console.log(`❌ [Socket.io] Client Disconnected: ${socket.id}`);
     });
 });
 
 server.listen(PORT, () => {
-    console.log(`🚀 Server is listening on port ${PORT}`);
+    console.log(`🚀 [Server] Running at http://localhost:${PORT}`);
 });

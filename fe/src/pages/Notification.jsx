@@ -15,19 +15,16 @@ export default function Notifications(){
     });
     const [filters, setFilters] = useState({
         search: '',
-        filterType: 'all',
-        sensorType: '',
-        severity: '',
-        status: '',
-        sortBy: 'timestamp',
-        sortOrder: 'desc'
+        filter: 'all',
+        order: 'desc'
     });
 
     const filterOptions = [
         {type: 'all', displayText: 'Tất cả'},
         {type: 'name', displayText: 'Tên thiết bị'},
         {type: 'severity', displayText: 'Độ nghiêm trọng'},
-        {type: 'status', displayText: 'Trạng thái'},
+        {type: 'title', displayText: 'Tiêu đề'},
+        {type: 'description', displayText: 'Nội dung'},
         {type: 'time', displayText: 'Thời gian'},
     ]
 
@@ -44,8 +41,7 @@ export default function Notifications(){
             const params = {
                 page: pagination.page,
                 limit: pagination.limit,
-                ...filters,
-                filterType: filters.filterType === 'all' ? '' : filters.filterType
+                ...filters
             };
 
             const response = await alertService.getAll(params);
@@ -70,25 +66,19 @@ export default function Notifications(){
         setPagination(prev => ({ ...prev, page: newPage }));
     };
 
+    const handleLimitChange = (newLimit) => {
+        setPagination(prev => ({
+            ...prev,
+            page: 1,
+            limit: newLimit
+        }));
+    };
+
     const handleFilterChange = (filterType) => {
-        // Xác định sortBy dựa trên filterType mới
-        let sortBy = 'timestamp'; // Mặc định sắp xếp theo thời gian
-        
-        if (filterType !== 'all' && filterType !== 'time') {
-            const sortByMapping = {
-                'name': 'device_name',
-                'severity': 'severity',
-                'status': 'status'
-            };
-            sortBy = sortByMapping[filterType] || 'timestamp';
-        }
-        
         setFilters(prev => ({ 
             ...prev, 
-            filterType: filterType,
-            sortBy: sortBy
+            filter: filterType
         }));
-        console.log('Filter changed to:', filterType);
         setPagination(prev => ({ ...prev, page: 1 }));
     };
 
@@ -96,30 +86,15 @@ export default function Notifications(){
         setFilters(prev => ({ 
             ...prev, 
             search: searchValue,
-            filterType: filterType || prev.filterType
+            filter: filterType || prev.filter
         }));
         setPagination(prev => ({ ...prev, page: 1 }));
     };
 
     const handleSort = (sortOrder) => {
-        // Xác định sortBy dựa trên filterType hiện tại
-        let sortBy = 'timestamp'; // Mặc định sắp xếp theo thời gian
-        
-        // Nếu filterType không phải 'all' hoặc 'time', có thể sort theo field đó
-        if (filters.filterType !== 'all' && filters.filterType !== 'time') {
-            // Mapping filterType sang sortBy field
-            const sortByMapping = {
-                'name': 'device_name',
-                'severity': 'severity',
-                'status': 'status'
-            };
-            sortBy = sortByMapping[filters.filterType] || 'timestamp';
-        }
-        
         setFilters(prev => ({ 
             ...prev, 
-            sortOrder: sortOrder,
-            sortBy: sortBy
+            order: sortOrder
         }));
     };
 
@@ -177,6 +152,7 @@ export default function Notifications(){
                 error={error}
                 pagination={pagination}
                 onPageChange={handlePageChange}
+                onLimitChange={handleLimitChange}
                 onFilterChange={handleFilterChange}
                 onSearch={handleSearch}
                 onSort={handleSort}
