@@ -1,0 +1,36 @@
+P1:
+ter1:
+mosquitto_sub -h 10.124.144.200 -p 2204 -u yuika -P G1nkosora -t "test/p1"
+ter2:
+mosquitto_pub -h 10.124.144.200 -p 2204 -u yuika -P G1nkosora -t "test/p1" -m "Hello P1: Success"(th dung)
+mosquitto_pub -h 10.124.144.200 -p 1234 -u yuika -P G1nkosora -t "test/p1" -m "Test sai port"(sai port)
+mosquitto_pub -h 10.124.144.200 -p 2204 -u yuika -P sai_pass -t "test/p1" -m "Test sai pass"(pass sai)
+mosquitto_pub -h 10.124.144.200 -p 2204 -u nguoi_la -P G1nkosora -t "test/p1" -m "Test sai user"(username sai)
+
+
+P2:
+ter1: xem nhiệt độ, độ ẩm, ánh sáng và bụi gửi từ ESP32 lên theo chu kỳ 5 giây.
+mosquitto_sub -h 10.124.144.200 -p 2204 -u yuika -P G1nkosora -t "datasensor"
+ter2:xem xác nhận các đèn đang ON hay OFF mỗi khi gửi lệnh điều khiển.
+mosquitto_sub -h 10.124.144.200 -p 2204 -u yuika -P G1nkosora -t "status"
+ter3: nghe các lệnh được gửi vào hệ thống
+mosquitto_sub -h 10.124.144.200 -p 2204 -u yuika -P G1nkosora -t "devicecontrol"
+ter4:
+1. Điều khiển đèn Nhiệt độ:
+Bật: mosquitto_pub -h 10.124.144.200 -p 2204 -u yuika -P G1nkosora -t "devicecontrol" -m "temp_on"
+Tắt: mosquitto_pub -h 10.124.144.200 -p 2204 -u yuika -P G1nkosora -t "devicecontrol" -m "temp_off"
+2. Điều khiển đèn Độ ẩm:
+Bật: mosquitto_pub -h 10.124.144.200 -p 2204 -u yuika -P G1nkosora -t "devicecontrol" -m "hum_on"
+Tắt: mosquitto_pub -h 10.124.144.200 -p 2204 -u yuika -P G1nkosora -t "devicecontrol" -m "hum_off"
+3. Điều khiển đèn Ánh sáng (LDR):
+Bật: mosquitto_pub -h 10.124.144.200 -p 2204 -u yuika -P G1nkosora -t "devicecontrol" -m "ldr_on"
+Tắt: mosquitto_pub -h 10.124.144.200 -p 2204 -u yuika -P G1nkosora -t "devicecontrol" -m "ldr_off"
+4. Điều khiển đèn Bụi (Dust):
+Bật: mosquitto_pub -h 10.124.144.200 -p 2204 -u yuika -P G1nkosora -t "devicecontrol" -m "dust_on"
+Tắt: mosquitto_pub -h 10.124.144.200 -p 2204 -u yuika -P G1nkosora -t "devicecontrol" -m "dust_off"
+5. Điều khiển tất cả:
+Bật hết: mosquitto_pub -h 10.124.144.200 -p 2204 -u yuika -P G1nkosora -t "devicecontrol" -m "all_on"
+Tắt hết: mosquitto_pub -h 10.124.144.200 -p 2204 -u yuika -P G1nkosora -t "devicecontrol" -m "all_off"
+6. Hiệu ứng
+Effect 1: mosquitto_pub -h 10.124.144.200 -p 2204 -u yuika -P G1nkosora -t "devicecontrol" -m "fx1"
+Effect 2: mosquitto_pub -h 10.124.144.200 -p 2204 -u yuika -P G1nkosora -t "devicecontrol" -m "fx2"

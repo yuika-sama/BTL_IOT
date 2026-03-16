@@ -1,107 +1,176 @@
+#include <WiFi.h>
+#include <PubSubClient.h>
+#include <ArduinoJson.h>
 #include "DHT.h"
+#include <GP2YDustSensor.h>
+#include <WiFiManager.h>
 
-// --- 1. KHAI BÁO CHÂN SENSOR ---
-#define DHT_PIN         14    // D14: Đọc DHT
-#define DHT_TYPE        DHT11
+// --- CẤU HÌNH MQTT ---
+const char* mqtt_server   = "10.124.144.200"; 
+const int   mqtt_port     = 2204;          
+const char* mqtt_username = "yuika";
+const char* mqtt_password = "G1nkosora";
 
-#define LDR_PIN         13    // D13: Đọc LDR (Analog)
+// --- TOPICS ---
+const char* TOPIC_DATA    = "sensor/data";    // Gửi dữ liệu từng sensor
+const char* TOPIC_CTRL    = "device/control"; // Lắng nghe lệnh bật tắt
+const char* TOPIC_STATUS  = "device/status";  // Phản hồi trạng thái đồng bộ
 
-#define GP2Y_LED_PIN    5     // D5: Điều khiển LED trong cảm biến bụi
-#define GP2Y_ANALOG_PIN 39    // VN (GPIO 39): Đọc Analog bụi (Chỉ Input)
+// --- PINOUT ---
+#define PIN_DHT_DATA  14
+#define PIN_DUST_LED  5
+#define PIN_DUST_IN   34
+#define PIN_SENSOR_AO 36
+#define PIN_LED_TEMP  21 
+#define PIN_LED_HUM   19
+#define PIN_LED_LDR   22
+#define PIN_LED_DUST  23
 
-// --- 2. KHAI BÁO CHÂN LED HIỂN THỊ ---
-#define LED_DHT_PIN     21    // D21: Báo trạng thái DHT
-#define LED_LDR_PIN     22    // D22: Báo trạng thái LDR
-#define LED_DUST_PIN    23    // D23: Báo trạng thái Bụi
+// --- KHAI BÁO CẢM BIẾN ---
+DHT dht(PIN_DHT_DATA, DHT11);
+GP2YDustSensor dustSensor(GP2YDustSensorType::GP2Y1010AU0F, PIN_DUST_LED, PIN_DUST_IN);
 
-// --- 3. BIẾN & ĐỐI TƯỢNG ---
-DHT dht(DHT_PIN, DHT_TYPE);
+WiFiClient espClient;
+PubSubClient client(espClient);
 
-// Hàm đọc bụi chuẩn Sharp
-float readDust() {
-  digitalWrite(GP2Y_LED_PIN, LOW); // Bật LED hồng ngoại
-  delayMicroseconds(280);
-  
-  int raw = analogRead(GP2Y_ANALOG_PIN);
-  
-  delayMicroseconds(40);
-  digitalWrite(GP2Y_LED_PIN, HIGH); // Tắt LED
-  delayMicroseconds(9680);
-  
-  // Tính toán
-  float voltage = raw * (3.3 / 4095.0);
-  float dust = (0.17 * voltage - 0.1) * 1000;
-  if (dust < 0) dust = 0;
-  return dust;
+// --- BIẾN QUẢN LÝ TRẠNG THÁI ---
+bool active_temp = false;
+bool active_hum  = false;
+bool active_ldr  = false;
+bool active_dust = false;
+
+unsigned long lastMsg = 0;
+const long interval = 2000; // Tần suất gửi data
+
+// Hàm gửi dữ liệu sensor đơn lẻ
+void send_sensor_data(String sensor_name, float value) {
+    if (isnan(value)) return;
+    
+    StaticJsonDocument<128> doc;
+    doc["sensor"] = sensor_name;
+    doc["value"]  = value;
+    
+    char buffer[128];
+    serializeJson(doc, buffer);
+    client.publish(TOPIC_DATA, buffer);
+}
+
+// Hàm gửi trạng thái hiện tại của tất cả LED/Sensors về Server (để đồng bộ UI)
+void send_current_status() {
+    StaticJsonDocument<200> doc;
+    doc["temp"] = active_temp ? "ON" : "OFF";
+    doc["hum"]  = active_hum  ? "ON" : "OFF";
+    doc["ldr"]  = active_ldr  ? "ON" : "OFF";
+    doc["dust"] = active_dust ? "ON" : "OFF";
+    
+    char buffer[200];
+    serializeJson(doc, buffer);
+    client.publish(TOPIC_STATUS, buffer);
+}
+
+// Hàm cập nhật LED dựa trên các biến trạng thái
+void update_hardware() {
+    digitalWrite(PIN_LED_TEMP, active_temp ? HIGH : LOW);
+    digitalWrite(PIN_LED_HUM,  active_hum  ? HIGH : LOW);
+    digitalWrite(PIN_LED_LDR,  active_ldr  ? HIGH : LOW);
+    digitalWrite(PIN_LED_DUST, active_dust ? HIGH : LOW);
+}
+
+// Xử lý lệnh nhận được từ MQTT
+void callback(char* topic, byte* payload, unsigned int length) {
+    String msg = "";
+    for (int i = 0; i < length; i++) msg += (char)payload[i];
+    msg.trim();
+    msg.toUpperCase(); // Chuẩn hóa lệnh thành chữ hoa
+
+    Serial.println("Lệnh nhận được: " + msg);
+
+    // 2 Lệnh bật/tắt tất cả
+    if (msg == "ALL_ON") {
+        active_temp = active_hum = active_ldr = active_dust = true;
+    } 
+    else if (msg == "ALL_OFF") {
+        active_temp = active_hum = active_ldr = active_dust = false;
+    }
+    // 8 Lệnh bật/tắt từng thiết bị
+    else if (msg == "TEMP_ON")   active_temp = true;
+    else if (msg == "TEMP_OFF")  active_temp = false;
+    else if (msg == "HUM_ON")    active_hum  = true;
+    else if (msg == "HUM_OFF")   active_hum  = false;
+    else if (msg == "LDR_ON")    active_ldr  = true;
+    else if (msg == "LDR_OFF")   active_ldr  = false;
+    else if (msg == "DUST_ON")   active_dust = true;
+    else if (msg == "DUST_OFF")  active_dust = false;
+
+    update_hardware();
+    send_current_status();
+}
+
+void reconnect() {
+    while (!client.connected()) {
+        Serial.print("Đang kết nối MQTT...");
+        String clientId = "ESP32_Client_" + String(random(0xffff), HEX);
+        if (client.connect(clientId.c_str(), mqtt_username, mqtt_password)) {
+            Serial.println("Đã kết nối!");
+            client.subscribe(TOPIC_CTRL);
+            send_current_status();
+        } else {
+            Serial.print("Thất bại, rc=");
+            Serial.print(client.state());
+            delay(5000);
+        }
+    }
 }
 
 void setup() {
-  Serial.begin(115200);
+    Serial.begin(115200);
+    
+    // Cấu hình PIN
+    pinMode(PIN_LED_TEMP, OUTPUT); 
+    pinMode(PIN_LED_HUM,  OUTPUT);
+    pinMode(PIN_LED_LDR,  OUTPUT); 
+    pinMode(PIN_LED_DUST, OUTPUT);
+    update_hardware();
 
-  // Cấu hình chân LED (Output)
-  pinMode(LED_DHT_PIN, OUTPUT);
-  pinMode(LED_LDR_PIN, OUTPUT);
-  pinMode(LED_DUST_PIN, OUTPUT);
+    dht.begin(); 
+    dustSensor.begin();
 
-  // Cấu hình chân Cảm biến
-  pinMode(LDR_PIN, INPUT);
-  pinMode(GP2Y_LED_PIN, OUTPUT);
-  pinMode(GP2Y_ANALOG_PIN, INPUT);
+    // Cấu hình WiFi thông qua WiFiManager
+    WiFiManager wm;
+    if(!wm.autoConnect("ESP32_Config_AP", "12345678")) {
+        Serial.println("Không thể kết nối WiFi, đang khởi động lại...");
+        delay(3000);
+        ESP.restart();
+    }
 
-  // Khởi động DHT
-  dht.begin();
-
-  // Test nháy tất cả LED 1 lần để báo khởi động xong
-  digitalWrite(LED_DHT_PIN, HIGH);
-  digitalWrite(LED_LDR_PIN, HIGH);
-  digitalWrite(LED_DUST_PIN, HIGH);
-  delay(1000);
-  digitalWrite(LED_DHT_PIN, LOW);
-  digitalWrite(LED_LDR_PIN, LOW);
-  digitalWrite(LED_DUST_PIN, LOW);
-
-  Serial.println("--- START SYSTEM TEST ---");
-  Serial.println("Temp(C) | Hum(%) | Light(Raw) | Dust(ug/m3)");
+    client.setServer(mqtt_server, mqtt_port);
+    client.setCallback(callback);
 }
 
 void loop() {
-  // --- A. TEST DHT ---
-  float t = dht.readTemperature();
-  float h = dht.readHumidity();
-  
-  if (isnan(t) || isnan(h)) {
-    Serial.print("DHT Error | ");
-    digitalWrite(LED_DHT_PIN, LOW); // Lỗi thì tắt LED
-  } else {
-    Serial.print("T:"); Serial.print(t, 1);
-    Serial.print(" H:"); Serial.print(h, 0); 
-    Serial.print(" | ");
-    // Đọc OK -> Nháy LED DHT
-    digitalWrite(LED_DHT_PIN, HIGH);
-  }
+    if (!client.connected()) reconnect();
+    client.loop();
 
-  // --- B. TEST LDR ---
-  int ldrVal = 4095 - analogRead(LDR_PIN);
-  Serial.print("LDR:"); Serial.print(ldrVal); Serial.print(" | ");
-  // Đọc OK -> Nháy LED LDR
-  digitalWrite(LED_LDR_PIN, HIGH);
+    unsigned long now = millis();
+    if (now - lastMsg > interval) {
+        lastMsg = now;
 
-  // --- C. TEST DUST ---
-  float dustVal = readDust();
-  Serial.print("Dust:"); Serial.print(dustVal, 1);
-  // Đọc OK -> Nháy LED Dust
-  digitalWrite(LED_DUST_PIN, HIGH);
-
-  Serial.println(); // Xuống dòng
-
-  // Giữ đèn sáng 200ms cho mắt kịp nhìn thấy
-  delay(200); 
-
-  // Tắt hết LED để chuẩn bị cho lần đo sau (tạo hiệu ứng nháy)
-  digitalWrite(LED_DHT_PIN, LOW);
-  digitalWrite(LED_LDR_PIN, LOW);
-  digitalWrite(LED_DUST_PIN, LOW);
-
-  // Đợi 2 giây đo tiếp
-  delay(2000);
+        // Chỉ gửi dữ liệu nếu sensor đó đang ở trạng thái ACTIVE
+        if (active_temp) {
+            send_sensor_data("temperature", dht.readTemperature());
+        }
+        
+        if (active_hum) {
+            send_sensor_data("humidity", dht.readHumidity());
+        }
+        
+        if (active_ldr) {
+            float ldr_val = (1.0 - (analogRead(PIN_SENSOR_AO) / 4095.0)) * 100.0;
+            send_sensor_data("light", ldr_val);
+        }
+        
+        if (active_dust) {
+            send_sensor_data("dust", dustSensor.getDustDensity());
+        }
+    }
 }
