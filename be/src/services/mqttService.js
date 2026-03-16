@@ -27,6 +27,63 @@ class MqttService {
             .toLowerCase();
     }
 
+    normalizeSensorType(sensorName = '') {
+        const name = this.normalizeText(sensorName);
+
+        if (name.includes('temperature') || name.includes('temp') || name.includes('nhiet')) {
+            return 'temperature';
+        }
+        if (name.includes('humidity') || name.includes('hum') || name.includes('am')) {
+            return 'humidity';
+        }
+        if (name.includes('light') || name.includes('ldr') || name.includes('anh')) {
+            return 'light';
+        }
+        if (name.includes('gas') || name.includes('dust') || name.includes('bui')) {
+            return 'gas';
+        }
+
+        return null;
+    }
+
+    emitSensorUpdate(payload = {}) {
+        const timestamp = payload.timestamp || new Date().toISOString();
+
+        if (payload.sensor !== undefined && payload.value !== undefined) {
+            const type = this.normalizeSensorType(payload.sensor);
+            const value = Number(payload.value);
+
+            if (!type || Number.isNaN(value)) {
+                return;
+            }
+
+            this.io.emit('sensor_update', {
+                type,
+                sensor: type,
+                value,
+                timestamp
+            });
+            return;
+        }
+
+        const entries = Object.entries(payload);
+        entries.forEach(([key, rawValue]) => {
+            const type = this.normalizeSensorType(key);
+            const value = Number(rawValue);
+
+            if (!type || Number.isNaN(value)) {
+                return;
+            }
+
+            this.io.emit('sensor_update', {
+                type,
+                sensor: type,
+                value,
+                timestamp
+            });
+        });
+    }
+
     init() {
         this.mqttClient.on('connect', () => {
             // Đăng ký các topic mà ESP32 sẽ gửi lên
@@ -45,9 +102,9 @@ class MqttService {
                 
                 switch (topic) {
                     case 'sensor/data':
-                        // Gửi dữ liệu sensor
-                        // Payload: { sensor: "temperature", value: 25.0 }
-                        this.io.emit('sensor_update', payload);
+                        // Payload ví dụ: { sensor: "temperature", value: 25.0 }
+                        // hoặc batch: { temperature: 25.0, humidity: 70 }
+                        this.emitSensorUpdate(payload);
                         break;
 
                     case 'device/status':

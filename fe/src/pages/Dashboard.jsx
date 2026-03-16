@@ -109,9 +109,9 @@ export default function Dashboard() {
                     }];
                     return newData.slice(-20);
                 });
-            } else if (data.type === 'dust') {
-                setSensorData(prev => ({ ...prev, dust: data.value }));
-                setDustData(prev => {
+            } else if (data.type === 'gas' || data.type === 'dust') {
+                setSensorData(prev => ({ ...prev, gas: data.value }));
+                setGasData(prev => {
                     const newData = [...prev, { 
                         timestamp: data.timestamp, 
                         value: data.value 
@@ -262,9 +262,9 @@ export default function Dashboard() {
                 <div className={`w-3 h-3 rounded-full transition-all duration-300 ${
                     isConnected() ? 'bg-green-500 shadow-lg shadow-green-200 animate-pulse' : 'bg-red-500 shadow-lg shadow-red-200'
                 }`}></div>
-                <span className="text-sm font-medium ${
+                <span className={`text-sm font-medium ${
                     isConnected() ? 'text-green-700' : 'text-red-700'
-                }">
+                }`}>
                     {isConnected() ? 'Đã kết nối với server' : 'Mất kết nối'}
                 </span>
             </div>
@@ -294,7 +294,7 @@ export default function Dashboard() {
                             {formattedDevices.map((device) => (
                                 <ToggleCard 
                                     key={device.id}
-                                    deviceName={device.name.toLowerCase().charAt(0).toUpperCase() + device.name.slice(1)} 
+                                    deviceName={device.displayName}
                                     initialState={getDeviceState(device.value, device.status)}
                                     isConnected={device.is_connected !== false}
                                     onToggle={() => handleToggleDevice(device.id, device.value, device.status)}
