@@ -54,7 +54,7 @@ const getAutoDecisionByThreshold = async (deviceId) => {
         };
     }
 
-    const shouldTurnOn = sensors.some((item) => {
+    const isWithinThreshold = (item) => {
         const value = Number(item.latest_value);
         const min = item.threshold_min !== null && item.threshold_min !== undefined ? Number(item.threshold_min) : null;
         const max = item.threshold_max !== null && item.threshold_max !== undefined ? Number(item.threshold_max) : null;
@@ -64,15 +64,18 @@ const getAutoDecisionByThreshold = async (deviceId) => {
         }
 
         if (min !== null && !Number.isNaN(min) && value < min) {
-            return true;
+            return false;
         }
 
         if (max !== null && !Number.isNaN(max) && value > max) {
-            return true;
+            return false;
         }
 
-        return false;
-    });
+        return true;
+    };
+
+    // Requirement: inside threshold => turn on, outside threshold => turn off.
+    const shouldTurnOn = sensors.every((item) => isWithinThreshold(item));
 
     return {
         hasDecision: true,

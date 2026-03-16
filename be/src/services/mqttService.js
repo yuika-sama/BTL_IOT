@@ -1,12 +1,22 @@
 const mqtt = require('mqtt');
 require('dotenv').config();
+const { randomUUID } = require('crypto');
+const { query } = require('../config/db');
 const { syncAutoDevicesAndApplyControl } = require('./autoControlService');
+
+const SENSOR_TYPE_CONDITIONS = {
+    temperature: "(LOWER(name) LIKE '%temp%' OR LOWER(name) LIKE '%nhiet%')",
+    humidity: "(LOWER(name) LIKE '%hum%' OR LOWER(name) LIKE '%am%')",
+    light: "(LOWER(name) LIKE '%light%' OR LOWER(name) LIKE '%anh%' OR LOWER(name) LIKE '%ldr%')",
+    gas: "(LOWER(name) LIKE '%gas%' OR LOWER(name) LIKE '%dust%' OR LOWER(name) LIKE '%bui%' OR LOWER(name) LIKE '%khi%')"
+};
 
 class MqttService {
     constructor(io) {
         this.io = io;
         this.latestDeviceStatus = {};
         this.pendingStatusWaiters = new Map();
+        this.latestSensorThresholdState = new Map();
         const brokerUrl = process.env.MQTT_SERVER || 'mqtt://localhost';
         const brokerPort = Number(process.env.MQTT_PORT || 2204);
         this.mqttClient = mqtt.connect(brokerUrl, {
@@ -47,42 +57,182 @@ class MqttService {
         return null;
     }
 
-    emitSensorUpdate(payload = {}) {
+    extractSensorReadings(payload = {}) {
         const timestamp = payload.timestamp || new Date().toISOString();
+        const readings = [];
 
         if (payload.sensor !== undefined && payload.value !== undefined) {
             const type = this.normalizeSensorType(payload.sensor);
             const value = Number(payload.value);
 
-            if (!type || Number.isNaN(value)) {
-                return;
+            if (type && !Number.isNaN(value)) {
+                readings.push({ type, sensor: type, value, timestamp });
             }
 
-            this.io.emit('sensor_update', {
-                type,
-                sensor: type,
-                value,
-                timestamp
-            });
-            return;
+            return readings;
         }
 
-        const entries = Object.entries(payload);
-        entries.forEach(([key, rawValue]) => {
+        Object.entries(payload).forEach(([key, rawValue]) => {
             const type = this.normalizeSensorType(key);
             const value = Number(rawValue);
 
-            if (!type || Number.isNaN(value)) {
-                return;
+            if (type && !Number.isNaN(value)) {
+                readings.push({ type, sensor: type, value, timestamp });
             }
-
-            this.io.emit('sensor_update', {
-                type,
-                sensor: type,
-                value,
-                timestamp
-            });
         });
+
+        return readings;
+    }
+
+    async getSensorConfigByType(type) {
+        const condition = SENSOR_TYPE_CONDITIONS[type];
+        if (!condition) {
+            return null;
+        }
+
+        const rows = await query(
+            `
+                SELECT id, device_id, name, unit, threshold_min, threshold_max
+                FROM sensors
+                WHERE ${condition}
+                ORDER BY created_at ASC
+                LIMIT 1
+            `
+        );
+
+        return rows?.[0] || null;
+    }
+
+    evaluateThresholdState(value, thresholdMin, thresholdMax) {
+        const min = thresholdMin !== null && thresholdMin !== undefined ? Number(thresholdMin) : null;
+        const max = thresholdMax !== null && thresholdMax !== undefined ? Number(thresholdMax) : null;
+
+        if (min !== null && !Number.isNaN(min) && value < min) {
+            return 'low';
+        }
+
+        if (max !== null && !Number.isNaN(max) && value > max) {
+            return 'high';
+        }
+
+        return 'normal';
+    }
+
+    toMySqlDateTime(input) {
+        const parsedDate = input ? new Date(input) : new Date();
+        const date = Number.isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
+        return date.toISOString().slice(0, 19).replace('T', ' ');
+    }
+
+    async insertSensorData(sensorId, value, timestamp) {
+        const createdAt = this.toMySqlDateTime(timestamp);
+
+        await query(
+            `
+                INSERT INTO data_sensors (id, sensor_id, value, created_at)
+                VALUES (?, ?, ?, ?)
+            `,
+            [randomUUID(), sensorId, value, createdAt]
+        );
+    }
+
+    async insertAlert({ sensorId, deviceId = null, title, description, severity = 'warning' }) {
+        await query(
+            `
+                INSERT INTO alerts (id, sensor_id, device_id, title, description, severity, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, NOW())
+            `,
+            [randomUUID(), sensorId, deviceId, title, description, severity]
+        );
+
+        this.io.emit('alert_update', {
+            sensor_id: sensorId,
+            device_id: deviceId,
+            title,
+            description,
+            severity,
+            timestamp: new Date().toISOString()
+        });
+    }
+
+    buildAlertPayload(sensor, value, thresholdState, previousState) {
+        const sensorName = sensor?.name || 'Sensor';
+        const unit = sensor?.unit || '';
+
+        if (thresholdState === 'normal' && previousState && previousState !== 'normal') {
+            return {
+                severity: 'medium',
+                title: `${sensorName} đã trở lại bình thường`,
+                description: `${sensorName} hiện tại = ${value}${unit}. Giá trị đã nằm trong ngưỡng an toàn.`
+            };
+        }
+
+        if (thresholdState === 'high') {
+            return {
+                severity: 'high',
+                title: `${sensorName} vượt ngưỡng trên`,
+                description: `${sensorName} = ${value}${unit}, vượt ngưỡng tối đa ${sensor.threshold_max}${unit}.`
+            };
+        }
+
+        if (thresholdState === 'low') {
+            return {
+                severity: 'low',
+                title: `${sensorName} thấp hơn ngưỡng dưới`,
+                description: `${sensorName} = ${value}${unit}, thấp hơn ngưỡng tối thiểu ${sensor.threshold_min}${unit}.`
+            };
+        }
+
+        return null;
+    }
+
+    async persistSensorAndCreateAlert(reading) {
+        const sensor = await this.getSensorConfigByType(reading.type);
+        if (!sensor) {
+            return;
+        }
+
+        await this.insertSensorData(sensor.id, reading.value, reading.timestamp);
+
+        const thresholdState = this.evaluateThresholdState(reading.value, sensor.threshold_min, sensor.threshold_max);
+        const previousState = this.latestSensorThresholdState.get(sensor.id);
+        this.latestSensorThresholdState.set(sensor.id, thresholdState);
+
+        const alertPayload = this.buildAlertPayload(sensor, reading.value, thresholdState, previousState);
+        if (!alertPayload) {
+            return;
+        }
+
+        if (previousState === thresholdState) {
+            return;
+        }
+
+        await this.insertAlert({
+            sensorId: sensor.id,
+            deviceId: sensor.device_id || null,
+            title: alertPayload.title,
+            description: alertPayload.description,
+            severity: alertPayload.severity
+        });
+    }
+
+    emitSensorUpdate(readings = []) {
+        readings.forEach((reading) => {
+            this.io.emit('sensor_update', reading);
+        });
+    }
+
+    async handleSensorData(payload = {}) {
+        const readings = this.extractSensorReadings(payload);
+        if (!readings.length) {
+            return;
+        }
+
+        for (const reading of readings) {
+            await this.persistSensorAndCreateAlert(reading);
+        }
+
+        this.emitSensorUpdate(readings);
     }
 
     init() {
@@ -112,13 +262,16 @@ class MqttService {
                     case 'sensor/data':
                         // Payload ví dụ: { sensor: "temperature", value: 25.0 }
                         // hoặc batch: { temperature: 25.0, humidity: 70 }
-                        this.emitSensorUpdate(payload);
-                        syncAutoDevicesAndApplyControl({
-                            mqttService: this,
-                            trigger: 'sensor-data'
-                        }).catch((error) => {
-                            console.error('❌ [AUTO] Sync after sensor update failed:', error.message);
-                        });
+                        this.handleSensorData(payload)
+                            .then(() => {
+                                return syncAutoDevicesAndApplyControl({
+                                    mqttService: this,
+                                    trigger: 'sensor-data'
+                                });
+                            })
+                            .catch((error) => {
+                                console.error('❌ [AUTO] Handle sensor data failed:', error.message);
+                            });
                         break;
 
                     case 'device/status':
