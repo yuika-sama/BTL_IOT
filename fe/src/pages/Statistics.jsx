@@ -127,7 +127,6 @@ export default function Statistics() {
                     <div className="flex items-center justify-between">
                         <div>
                             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                                <ChartColumn size={24} className="text-blue-500" />
                                 Thống kê hệ thống
                             </h1>
                             <p className="text-gray-600">

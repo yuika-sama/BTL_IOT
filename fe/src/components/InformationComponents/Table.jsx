@@ -12,12 +12,12 @@ export default function Table({ data = [], columns = [], }) {
                 color: 'bg-gradient-to-r from-red-50 to-red-100 text-red-700 border border-red-200/50 shadow-sm',
                 icon: <XCircle size={16} className="text-red-600" />
             },
-            'medium': {
+            'low': {
                 text: 'Cảnh báo', 
                 color: 'bg-gradient-to-r from-orange-50 to-orange-100 text-orange-700 border border-orange-200/50 shadow-sm',
                 icon: <AlertCircle size={16} className="text-orange-600" />
             },
-            'low': {
+            'medium': {
                 text: 'Thông tin', 
                 color: 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 border border-blue-200/50 shadow-sm',
                 icon: <AlertCircle size={16} className="text-blue-600" />
