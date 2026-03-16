@@ -2,6 +2,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const app = require('./app');
 const MqttService = require('./services/mqttService');
+const { syncAutoDevicesAndApplyControl } = require('./services/autoControlService');
 
 const PORT = 5000;
 const server = http.createServer(app);
@@ -24,6 +25,13 @@ app.locals.mqttService = mqttService;
 // Lắng nghe kết nối từ
 io.on('connection', (socket) => {
     console.log(`🔌 [Socket.io] New Client Connected: ${socket.id}`);
+
+    syncAutoDevicesAndApplyControl({
+        mqttService,
+        trigger: 'socket-connect'
+    }).catch((error) => {
+        console.error('❌ [AUTO] Sync on socket connection failed:', error.message);
+    });
 
     // Nhận lệnh điều khiển
     socket.on('send_command', (command) => {

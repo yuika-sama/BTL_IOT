@@ -34,7 +34,10 @@ export default function InforCard({temperature, humidity, light, gas}) {
             {/* Header - Nhiệt độ */}
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                    <Sun size={36} className="text-blue-500" />
+                    <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                        <Thermometer size={36} className="text-red-500"  />
+                    </div>
+                    
                     <span className="text-gray-600 font-medium">Nhiệt độ</span>
                 </div>
                 <div className="text-right relative">

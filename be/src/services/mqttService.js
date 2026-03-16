@@ -1,5 +1,6 @@
 const mqtt = require('mqtt');
 require('dotenv').config();
+const { syncAutoDevicesAndApplyControl } = require('./autoControlService');
 
 class MqttService {
     constructor(io) {
@@ -90,6 +91,13 @@ class MqttService {
             this.mqttClient.subscribe(['sensor/data', 'device/status', 'device/sync'], (err) => {
                 if (!err) console.log('📡 [MQTT] Subscribed to all topics');
             });
+
+            syncAutoDevicesAndApplyControl({
+                mqttService: this,
+                trigger: 'mqtt-connect'
+            }).catch((error) => {
+                console.error('❌ [AUTO] Sync after MQTT connect failed:', error.message);
+            });
         });
 
         this.mqttClient.on('disconnect', () => {
@@ -105,6 +113,12 @@ class MqttService {
                         // Payload ví dụ: { sensor: "temperature", value: 25.0 }
                         // hoặc batch: { temperature: 25.0, humidity: 70 }
                         this.emitSensorUpdate(payload);
+                        syncAutoDevicesAndApplyControl({
+                            mqttService: this,
+                            trigger: 'sensor-data'
+                        }).catch((error) => {
+                            console.error('❌ [AUTO] Sync after sensor update failed:', error.message);
+                        });
                         break;
 
                     case 'device/status':

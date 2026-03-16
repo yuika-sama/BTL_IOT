@@ -294,7 +294,7 @@ export default function Dashboard() {
                             {formattedDevices.map((device) => (
                                 <ToggleCard 
                                     key={device.id}
-                                    deviceName={device.displayName}
+                                    deviceName={device.name.charAt(0).toUpperCase() + device.name.slice(1)}
                                     initialState={getDeviceState(device.value, device.status)}
                                     isConnected={device.is_connected !== false}
                                     onToggle={() => handleToggleDevice(device.id, device.value, device.status)}

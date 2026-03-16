@@ -56,9 +56,19 @@ export default function ToggleCard({
             return "bg-gray-400 cursor-not-allowed";
         }
         if (state === "on") {
-            return "bg-blue-500";
+            return "bg-orange-500";
         }
         return "bg-gray-300";
+    };
+
+    const getTextToggleStyle = () => {
+        if (!isConnected || state === "disconnected") {
+            return "text-gray-400 cursor-not-allowed";
+        }
+        if (state === "on") {
+            return "text-orange-500";
+        }
+        return "text-gray-300";
     };
 
     const getToggleThumbStyle = () => {
@@ -73,7 +83,7 @@ export default function ToggleCard({
             return "text-gray-400";
         }
         if (state === "on") {
-            return "text-yellow-500";
+            return "text-orange-500";
         }
         return "text-gray-400";
     };
@@ -84,7 +94,7 @@ export default function ToggleCard({
                 {/* Left side - Device name and toggle */}
                 <div className="flex flex-col gap-3">
                     <div className="flex items-center gap-2">
-                        <span className="text-gray-700 font-medium">{deviceName}</span>
+                        <span className={`text-gray-700 font-medium ${getTextToggleStyle()}`}>{deviceName}</span>
                         {(!isConnected || state === "disconnected") && (
                             <WifiOff size={16} className="text-red-500" />
                         )}
@@ -113,7 +123,7 @@ export default function ToggleCard({
 
                 {/* Right side - Lightbulb icon */}
                 <Lightbulb 
-                    size={48} 
+                    size={56} 
                     className={`transition-colors duration-300 ${getLightbulbColor()}`}
                     fill={state === "on" && isConnected ? "currentColor" : "none"}
                 />

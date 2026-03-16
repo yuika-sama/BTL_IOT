@@ -1,5 +1,6 @@
 const { randomUUID } = require('crypto');
 const { query } = require('../config/db');
+const { getAutoDecisionByThreshold, syncAutoDevicesAndApplyControl } = require('../services/autoControlService');
 
 const normalizeText = (value = '') => {
     return String(value)
@@ -24,60 +25,6 @@ const resolveDeviceCommandPrefix = (deviceName = '') => {
     );
 
     return matchedRule ? matchedRule.prefix : 'DEVICE';
-};
-
-const getAutoDecisionByThreshold = async (deviceId) => {
-    const rows = await query(
-        `
-            SELECT
-                s.id,
-                s.threshold_min,
-                s.threshold_max,
-                (
-                    SELECT ds.value
-                    FROM data_sensors ds
-                    WHERE ds.sensor_id = s.id
-                    ORDER BY ds.created_at DESC
-                    LIMIT 1
-                ) AS latest_value
-            FROM sensors s
-            WHERE s.device_id = ?
-        `,
-        [deviceId]
-    );
-
-    const sensors = rows.filter((item) => item.latest_value !== null && item.latest_value !== undefined);
-    if (!sensors.length) {
-        return {
-            hasDecision: false,
-            shouldTurnOn: false
-        };
-    }
-
-    const shouldTurnOn = sensors.some((item) => {
-        const value = Number(item.latest_value);
-        const min = item.threshold_min !== null && item.threshold_min !== undefined ? Number(item.threshold_min) : null;
-        const max = item.threshold_max !== null && item.threshold_max !== undefined ? Number(item.threshold_max) : null;
-
-        if (Number.isNaN(value)) {
-            return false;
-        }
-
-        if (min !== null && !Number.isNaN(min) && value < min) {
-            return true;
-        }
-
-        if (max !== null && !Number.isNaN(max) && value > max) {
-            return true;
-        }
-
-        return false;
-    });
-
-    return {
-        hasDecision: true,
-        shouldTurnOn
-    };
 };
 
 const toggleDevice = async (req, res) => {
@@ -239,6 +186,7 @@ const toggleDevice = async (req, res) => {
 const toggleAutoMode = async (req, res) => {
     try {
         const { id } = req.params;
+        const mqttService = req.app.locals.mqttService;
 
         const rows = await query(
             `
@@ -286,14 +234,38 @@ const toggleAutoMode = async (req, res) => {
             [randomUUID(), id, command, 'user', 'success']
         );
 
+        await syncAutoDevicesAndApplyControl({
+            mqttService,
+            deviceId: id,
+            trigger: 'toggle-auto'
+        });
+
+        const latestRows = await query(
+            `
+                SELECT id, name, value, status, auto_toggle
+                FROM devices
+                WHERE id = ?
+                LIMIT 1
+            `,
+            [id]
+        );
+
+        const latestDevice = latestRows?.[0] || {
+            id,
+            name: device.name,
+            value: nextValue,
+            status: 'success',
+            auto_toggle: nextAutoToggle
+        };
+
         return res.status(200).json({
             success: true,
             data: {
-                id,
-                name: device.name,
-                value: nextValue,
-                status: 'success',
-                auto_toggle: nextAutoToggle,
+                id: latestDevice.id,
+                name: latestDevice.name,
+                value: Number(latestDevice.value || 0),
+                status: latestDevice.status,
+                auto_toggle: Number(latestDevice.auto_toggle || 0),
                 command
             }
         });
