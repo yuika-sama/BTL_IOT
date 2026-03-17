@@ -1,5 +1,5 @@
 import baseApi from './baseApi.jsx';
-import { processTimestamp } from '../utils/formatter.js';
+import { formatDateTime, isValidDateTime } from '../utils/formatter.js';
 const normalizePagination = (pagination = {}) => {
   return {
     page: Number(pagination.page || 1),
@@ -30,30 +30,26 @@ const buildHistoryParams = (params = {}) => {
 
 const dataSensorService = {
   getSensorHistory: async (params = {}) => {
-    // Xử lý giá trị params là thời gian gửi đi -7 giờ
     const processedParams = { ...params };
-    if (processedParams.search) {
-      processedParams.search = processTimestamp(processedParams.search, -7);
+    const searchValue = typeof processedParams.search === 'string' ? processedParams.search.trim() : '';
+
+    // Only normalize date-time search when filter is time.
+    if (processedParams.filter === 'time' && searchValue) {
+      if (isValidDateTime(searchValue)) {
+        processedParams.search = formatDateTime(searchValue);
+      } else {
+        processedParams.search = searchValue;
+      }
     }
 
     const response = await baseApi.get('/data-sensors', {
       params: buildHistoryParams(processedParams),
     });
 
-    // Xử lý thời gian hiển thị +7 giờ
-    const timestampStr = response?.data?.[0]?.timestamp;
-    const date = new Date(timestampStr)
-    date.setHours(date.getHours() + 7);
-
-    const formattedData = (response?.data || []).map(item => ({
-      ...item,
-      timestamp: date.toISOString(),
-    }));
-
     return {
       success: Boolean(response?.success),
       data: {
-        data: formattedData || [],
+        data: Array.isArray(response?.data) ? response.data : [],
         pagination: normalizePagination(response?.pagination),
       },
     };

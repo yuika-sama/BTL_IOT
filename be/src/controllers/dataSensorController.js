@@ -13,11 +13,18 @@ const SEARCH_FILTER_MAP = {
     time: "DATE_FORMAT(g.timestamp, '%Y-%m-%d %H:%i:%s') LIKE ?"
 };
 
+const NUMERIC_FILTER_COLUMN_MAP = {
+    temperature: 'g.temperature',
+    humidity: 'g.humidity',
+    light: 'g.light',
+    gas: 'g.gas'
+};
+
 const SENSOR_TYPE_CONDITIONS = {
     temperature: "(LOWER(s.name) LIKE '%temp%' OR LOWER(s.name) LIKE '%nhiet%')",
     humidity: "(LOWER(s.name) LIKE '%hum%' OR LOWER(s.name) LIKE '%am%')",
-    light: "(LOWER(s.name) LIKE '%light%' OR LOWER(s.name) LIKE '%anh%' OR LOWER(s.name) LIKE '%ldr%')",
-    gas: "(LOWER(s.name) LIKE '%gas%' OR LOWER(s.name) LIKE '%khí%')"
+    light: "(LOWER(s.name) LIKE '%light%' OR LOWER(s.name) LIKE '%anh%' OR LOWER(s.name) LIKE '%anh sang%' OR LOWER(s.name) LIKE '%ánh%' OR LOWER(s.name) LIKE '%sáng%' OR LOWER(s.name) LIKE '%ldr%')",
+    gas: "(LOWER(s.name) LIKE '%gas%' OR LOWER(s.name) LIKE '%khi%')"
 };
 
 const BASE_AGGREGATE_SQL = `
@@ -32,6 +39,19 @@ const BASE_AGGREGATE_SQL = `
     INNER JOIN sensors s ON s.id = ds.sensor_id
     GROUP BY DATE_FORMAT(ds.created_at, '%Y-%m-%d %H:%i:%s')
 `;
+
+const parseNumericKeyword = (value) => {
+    const normalized = String(value || '').trim().replace(',', '.');
+    if (!normalized) {
+        return null;
+    }
+
+    if (!/^-?\d+(\.\d+)?$/.test(normalized)) {
+        return null;
+    }
+
+    return Number(normalized);
+};
 
 const buildWhereClause = ({ search = '', filter = 'all' } = {}) => {
     const conditions = [];
@@ -48,6 +68,20 @@ const buildWhereClause = ({ search = '', filter = 'all' } = {}) => {
     }
 
     const wildcard = `%${keyword}%`;
+
+    const numericColumn = NUMERIC_FILTER_COLUMN_MAP[filterKey];
+    const numericKeyword = parseNumericKeyword(keyword);
+
+    if (numericColumn && numericKeyword !== null) {
+        // Compare at 1 decimal to match what UI displays (e.g. 31.0).
+        conditions.push(`ROUND(CAST(${numericColumn} AS DECIMAL(18,6)), 1) = ROUND(?, 1)`);
+        params.push(numericKeyword);
+
+        return {
+            whereClause: `WHERE ${conditions.join(' AND ')}`,
+            whereParams: params
+        };
+    }
 
     if (SEARCH_FILTER_MAP[filterKey]) {
         conditions.push(SEARCH_FILTER_MAP[filterKey]);
