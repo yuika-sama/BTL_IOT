@@ -13,6 +13,76 @@ const SEARCH_FILTER_MAP = {
     time: "DATE_FORMAT(ah.created_at, '%Y-%m-%d %H:%i:%s') LIKE ?"
 };
 
+const parseTimeSearchKeyword = (value) => {
+    const keyword = String(value || '').trim().replace(',', ' ');
+    if (!keyword) {
+        return null;
+    }
+
+    const secondDmyMatch = keyword.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/);
+    if (secondDmyMatch) {
+        const [, day, month, year, hour, minute, second] = secondDmyMatch;
+        return { type: 'second', value: `${year}-${month}-${day} ${hour}:${minute}:${second}` };
+    }
+
+    const minuteDmyMatch = keyword.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})$/);
+    if (minuteDmyMatch) {
+        const [, day, month, year, hour, minute] = minuteDmyMatch;
+        return { type: 'minute', value: `${year}-${month}-${day} ${hour}:${minute}` };
+    }
+
+    const dayDmyMatch = keyword.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (dayDmyMatch) {
+        const [, day, month, year] = dayDmyMatch;
+        return { type: 'day', value: `${year}-${month}-${day}` };
+    }
+
+    const secondYmdMatch = keyword.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})$/);
+    if (secondYmdMatch) {
+        const [, year, month, day, hour, minute, second] = secondYmdMatch;
+        return { type: 'second', value: `${year}-${month}-${day} ${hour}:${minute}:${second}` };
+    }
+
+    const minuteYmdMatch = keyword.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})$/);
+    if (minuteYmdMatch) {
+        const [, year, month, day, hour, minute] = minuteYmdMatch;
+        return { type: 'minute', value: `${year}-${month}-${day} ${hour}:${minute}` };
+    }
+
+    const dayYmdMatch = keyword.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dayYmdMatch) {
+        const [, year, month, day] = dayYmdMatch;
+        return { type: 'day', value: `${year}-${month}-${day}` };
+    }
+
+    return null;
+};
+
+const buildTimeCondition = (column, parsedTime) => {
+    if (!parsedTime) {
+        return null;
+    }
+
+    if (parsedTime.type === 'day') {
+        return {
+            sql: `DATE(${column}) = ?`,
+            param: parsedTime.value
+        };
+    }
+
+    if (parsedTime.type === 'minute') {
+        return {
+            sql: `DATE_FORMAT(${column}, '%Y-%m-%d %H:%i') = ?`,
+            param: parsedTime.value
+        };
+    }
+
+    return {
+        sql: `DATE_FORMAT(${column}, '%Y-%m-%d %H:%i:%s') = ?`,
+        param: parsedTime.value
+    };
+};
+
 const formatDateToYMD = (date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -26,22 +96,41 @@ const buildWhereClause = ({ search = '', filter = 'all' } = {}) => {
 
     const keyword = String(search).trim();
     const filterKey = String(filter || 'all').trim();
+    const wildcard = `%${keyword}%`;
+    const parsedTime = parseTimeSearchKeyword(keyword);
+    const timeCondition = buildTimeCondition('ah.created_at', parsedTime);
 
     if (keyword) {
-        const wildcard = `%${keyword}%`;
-
-        if (SEARCH_FILTER_MAP[filterKey]) {
+        if (filterKey === 'time') {
+            if (timeCondition) {
+                conditions.push(timeCondition.sql);
+                params.push(timeCondition.param);
+            } else {
+                conditions.push(SEARCH_FILTER_MAP.time);
+                params.push(wildcard);
+            }
+        } else if (SEARCH_FILTER_MAP[filterKey]) {
             conditions.push(SEARCH_FILTER_MAP[filterKey]);
             params.push(wildcard);
         } else {
-            conditions.push(`(
-                d.name LIKE ?
-                OR ah.command LIKE ?
-                OR ah.status LIKE ?
-                OR ah.executor LIKE ?
-                OR DATE_FORMAT(ah.created_at, '%Y-%m-%d %H:%i:%s') LIKE ?
-            )`);
-            params.push(wildcard, wildcard, wildcard, wildcard, wildcard);
+            const allConditions = [
+                'd.name LIKE ?',
+                'ah.command LIKE ?',
+                'ah.status LIKE ?',
+                'ah.executor LIKE ?'
+            ];
+
+            params.push(wildcard, wildcard, wildcard, wildcard);
+
+            if (timeCondition) {
+                allConditions.push(timeCondition.sql);
+                params.push(timeCondition.param);
+            } else {
+                allConditions.push("DATE_FORMAT(ah.created_at, '%Y-%m-%d %H:%i:%s') LIKE ?");
+                params.push(wildcard);
+            }
+
+            conditions.push(`(${allConditions.join(' OR ')})`);
         }
     }
 
@@ -93,7 +182,6 @@ const getAllActionHistory = async (req, res) => {
 
         const orderInput = String(req.query.order || 'desc').toLowerCase();
         const sortOrder = ORDER_MAP[orderInput] || ORDER_MAP.desc;
-        console.log((req.query.search))
         const { whereClause, whereParams } = buildWhereClause(req.query);
 
         const dataSql = `SELECT 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import MainLayout from '../components/MainLayout.jsx';
 import InformationLayout from '../components/InformationLayout.jsx';
 import alertService from '../services/alertService.jsx';
+import { formatTime } from '../utils/formatter.js';
 
 export default function Notifications(){
     const [data, setData] = useState([]);
@@ -127,7 +128,7 @@ export default function Notifications(){
             key: 'timestamp', 
             header: 'Thời gian', 
             accessor: 'timestamp',
-            render: (value) => (<span className="text-sm text-gray-500">{new Date(value).toLocaleString()}</span>)
+            render: (value) => (<span className="text-sm text-gray-500">{formatTime(value)}</span>)
         },
         { 
             key: 'notification', 

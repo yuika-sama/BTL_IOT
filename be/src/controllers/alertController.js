@@ -21,6 +21,76 @@ const SEVERITY_COUNT_SQL = `
     SUM(CASE WHEN LOWER(severity) = 'normal' THEN 1 ELSE 0 END) AS normal_count
 `;
 
+const parseTimeSearchKeyword = (value) => {
+    const keyword = String(value || '').trim().replace(',', ' ');
+    if (!keyword) {
+        return null;
+    }
+
+    const secondDmyMatch = keyword.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/);
+    if (secondDmyMatch) {
+        const [, day, month, year, hour, minute, second] = secondDmyMatch;
+        return { type: 'second', value: `${year}-${month}-${day} ${hour}:${minute}:${second}` };
+    }
+
+    const minuteDmyMatch = keyword.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})$/);
+    if (minuteDmyMatch) {
+        const [, day, month, year, hour, minute] = minuteDmyMatch;
+        return { type: 'minute', value: `${year}-${month}-${day} ${hour}:${minute}` };
+    }
+
+    const dayDmyMatch = keyword.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (dayDmyMatch) {
+        const [, day, month, year] = dayDmyMatch;
+        return { type: 'day', value: `${year}-${month}-${day}` };
+    }
+
+    const secondYmdMatch = keyword.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})$/);
+    if (secondYmdMatch) {
+        const [, year, month, day, hour, minute, second] = secondYmdMatch;
+        return { type: 'second', value: `${year}-${month}-${day} ${hour}:${minute}:${second}` };
+    }
+
+    const minuteYmdMatch = keyword.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})$/);
+    if (minuteYmdMatch) {
+        const [, year, month, day, hour, minute] = minuteYmdMatch;
+        return { type: 'minute', value: `${year}-${month}-${day} ${hour}:${minute}` };
+    }
+
+    const dayYmdMatch = keyword.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dayYmdMatch) {
+        const [, year, month, day] = dayYmdMatch;
+        return { type: 'day', value: `${year}-${month}-${day}` };
+    }
+
+    return null;
+};
+
+const buildTimeCondition = (column, parsedTime) => {
+    if (!parsedTime) {
+        return null;
+    }
+
+    if (parsedTime.type === 'day') {
+        return {
+            sql: `DATE(${column}) = ?`,
+            param: parsedTime.value
+        };
+    }
+
+    if (parsedTime.type === 'minute') {
+        return {
+            sql: `DATE_FORMAT(${column}, '%Y-%m-%d %H:%i') = ?`,
+            param: parsedTime.value
+        };
+    }
+
+    return {
+        sql: `DATE_FORMAT(${column}, '%Y-%m-%d %H:%i:%s') = ?`,
+        param: parsedTime.value
+    };
+};
+
 const formatDateToYMD = (date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -31,6 +101,9 @@ const formatDateToYMD = (date) => {
 const buildWhereClause = ({ search = '', filter = 'all' } = {}) => {
     const keyword = String(search || '').trim();
     const filterKey = String(filter || 'all').trim();
+    const wildcard = `%${keyword}%`;
+    const parsedTime = parseTimeSearchKeyword(keyword);
+    const timeCondition = buildTimeCondition('a.created_at', parsedTime);
 
     if (!keyword) {
         return {
@@ -39,7 +112,19 @@ const buildWhereClause = ({ search = '', filter = 'all' } = {}) => {
         };
     }
 
-    const wildcard = `%${keyword}%`;
+    if (filterKey === 'time') {
+        if (timeCondition) {
+            return {
+                whereClause: `WHERE ${timeCondition.sql}`,
+                whereParams: [timeCondition.param]
+            };
+        }
+
+        return {
+            whereClause: `WHERE ${SEARCH_FILTER_MAP.time}`,
+            whereParams: [wildcard]
+        };
+    }
 
     if (SEARCH_FILTER_MAP[filterKey]) {
         return {
@@ -48,15 +133,25 @@ const buildWhereClause = ({ search = '', filter = 'all' } = {}) => {
         };
     }
 
+    const allConditions = [
+        'COALESCE(d.name, s.name) LIKE ?',
+        'a.title LIKE ?',
+        'a.description LIKE ?',
+        'a.severity LIKE ?'
+    ];
+    const whereParams = [wildcard, wildcard, wildcard, wildcard];
+
+    if (timeCondition) {
+        allConditions.push(timeCondition.sql);
+        whereParams.push(timeCondition.param);
+    } else {
+        allConditions.push("DATE_FORMAT(a.created_at, '%Y-%m-%d %H:%i:%s') LIKE ?");
+        whereParams.push(wildcard);
+    }
+
     return {
-        whereClause: `WHERE (
-            COALESCE(d.name, s.name) LIKE ?
-            OR a.title LIKE ?
-            OR a.description LIKE ?
-            OR a.severity LIKE ?
-            OR DATE_FORMAT(a.created_at, '%Y-%m-%d %H:%i:%s') LIKE ?
-        )`,
-        whereParams: [wildcard, wildcard, wildcard, wildcard, wildcard]
+        whereClause: `WHERE (${allConditions.join(' OR ')})`,
+        whereParams
     };
 };
 

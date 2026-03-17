@@ -1,4 +1,5 @@
 import baseApi from './baseApi.jsx';
+import { formatDateTime, isValidDateTime } from '../utils/formatter.js';  
 
 const normalizePagination = (pagination = {}) => {
   return {
@@ -30,9 +31,30 @@ const buildListParams = (params = {}) => {
 
 const alertService = {
   getAll: async (params = {}) => {
+    let processedParams = { ...params };
+    // Only normalize date-time search when filter is time.
+    if (isValidDateTime(processedParams.search)) {
+      processedParams.search = formatDateTime(processedParams.search);
+    } else {
+      if (typeof processedParams.search === 'string') { 
+        const replacementMap = {
+          "thông tin": "medium",
+          "nghiêm trọng": "high",
+          "cảnh báo": "low",
+        }
+
+        const searchRegex = new RegExp(Object.keys(replacementMap).join('|'), 'gi'); 
+        processedParams.search = processedParams.search.replace(searchRegex, (matched) => {
+          return replacementMap[matched.toLowerCase()];
+        });
+      }
+    }
+
     const response = await baseApi.get('/alerts', {
-      params: buildListParams(params),
+      params: buildListParams(processedParams),
     });
+
+    console.log(params)
 
     return {
       success: Boolean(response?.success),
