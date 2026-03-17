@@ -272,9 +272,9 @@ const getCountByDays = async (req, res) => {
         const rows = await query(sql, [days - 1]);
         const mapByDate = new Map(
             rows.map((row) => [
-                String(row.date).slice(0, 10),
+                formatDateToYMD(new Date(row.date)),
                 {
-                    date: String(row.date).slice(0, 10),
+                    date: formatDateToYMD(new Date(row.date)),
                     on_count: Number(row.on_count || 0),
                     off_count: Number(row.off_count || 0)
                 }
