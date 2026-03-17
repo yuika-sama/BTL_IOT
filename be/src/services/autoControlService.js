@@ -161,7 +161,7 @@ const applyAutoControlForDevice = async (device, mqttService, trigger = 'auto-sy
             INSERT INTO action_history (id, device_id, command, executor, status, created_at)
             VALUES (?, ?, ?, ?, ?, NOW())
         `,
-        [actionHistoryId, device.id, command, `system-auto:${trigger}`, 'waiting']
+        [actionHistoryId, device.id, command, `system`, 'waiting']
     );
 
     emitDeviceUpdate(mqttService, {

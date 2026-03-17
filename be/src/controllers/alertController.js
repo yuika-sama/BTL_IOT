@@ -21,6 +21,13 @@ const SEVERITY_COUNT_SQL = `
     SUM(CASE WHEN LOWER(severity) = 'normal' THEN 1 ELSE 0 END) AS normal_count
 `;
 
+const formatDateToYMD = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 const buildWhereClause = ({ search = '', filter = 'all' } = {}) => {
     const keyword = String(search || '').trim();
     const filterKey = String(filter || 'all').trim();
@@ -55,7 +62,11 @@ const buildWhereClause = ({ search = '', filter = 'all' } = {}) => {
 
 const normalizeDate = (value) => {
     if (!value) {
-        return new Date().toISOString().slice(0, 10);
+        return formatDateToYMD(new Date());
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
+        return String(value);
     }
 
     const parsed = new Date(value);
@@ -63,7 +74,7 @@ const normalizeDate = (value) => {
         return null;
     }
 
-    return parsed.toISOString().slice(0, 10);
+    return formatDateToYMD(parsed);
 };
 
 const createDateRange = (days) => {
@@ -73,7 +84,7 @@ const createDateRange = (days) => {
     for (let i = days - 1; i >= 0; i -= 1) {
         const date = new Date(today);
         date.setDate(today.getDate() - i);
-        dates.push(date.toISOString().slice(0, 10));
+        dates.push(formatDateToYMD(date));
     }
 
     return dates;

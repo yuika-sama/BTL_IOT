@@ -26,6 +26,7 @@ baseApi.interceptors.request.use(
 // Response interceptor
 baseApi.interceptors.response.use(
   (response) => {
+
     return response.data;
   },
   (error) => {

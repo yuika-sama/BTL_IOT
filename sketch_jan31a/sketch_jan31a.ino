@@ -5,7 +5,7 @@
 #include <WiFiManager.h>
 
 // --- CẤU HÌNH MQTT ---
-const char* mqtt_server   = "192.168.88.214"; 
+const char* mqtt_server   = "192.168.100.154"; 
 const int   mqtt_port     = 2204;           
 const char* mqtt_username = "yuika";
 const char* mqtt_password = "G1nkosora";

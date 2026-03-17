@@ -13,6 +13,13 @@ const SEARCH_FILTER_MAP = {
     time: "DATE_FORMAT(ah.created_at, '%Y-%m-%d %H:%i:%s') LIKE ?"
 };
 
+const formatDateToYMD = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 const buildWhereClause = ({ search = '', filter = 'all' } = {}) => {
     const conditions = [];
     const params = [];
@@ -50,8 +57,11 @@ const buildWhereClause = ({ search = '', filter = 'all' } = {}) => {
 
 const normalizeDate = (value) => {
     if (!value) {
-        const now = new Date();
-        return now.toISOString().slice(0, 10);
+        return formatDateToYMD(new Date());
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
+        return String(value);
     }
 
     const date = new Date(value);
@@ -59,7 +69,7 @@ const normalizeDate = (value) => {
         return null;
     }
 
-    return date.toISOString().slice(0, 10);
+    return formatDateToYMD(date);
 };
 
 const createDateRange = (days) => {
@@ -69,7 +79,7 @@ const createDateRange = (days) => {
     for (let i = days - 1; i >= 0; i -= 1) {
         const date = new Date(today);
         date.setDate(today.getDate() - i);
-        result.push(date.toISOString().slice(0, 10));
+        result.push(formatDateToYMD(date));
     }
 
     return result;
@@ -83,7 +93,7 @@ const getAllActionHistory = async (req, res) => {
 
         const orderInput = String(req.query.order || 'desc').toLowerCase();
         const sortOrder = ORDER_MAP[orderInput] || ORDER_MAP.desc;
-
+        console.log((req.query.search))
         const { whereClause, whereParams } = buildWhereClause(req.query);
 
         const dataSql = `SELECT 

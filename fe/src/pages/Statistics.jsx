@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import MainLayout from '../components/MainLayout.jsx';
-import { Bell, Power, Activity, TrendingUp, Calendar, BarChart3, ChartColumn } from 'lucide-react';
+import { Bell, Power, Activity, TrendingUp, Calendar, BarChart3 } from 'lucide-react';
 import { alertService, actionHistoryService } from '../services';
 
 export default function Statistics() {
@@ -22,6 +22,27 @@ export default function Statistics() {
     const [selectedDays, setSelectedDays] = useState(7);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    const toNumber = (value) => Number(value || 0);
+
+    const normalizeAlertDays = (items = []) => {
+        return items.map((item) => ({
+            ...item,
+            total_count: toNumber(item.total_count),
+            high_count: toNumber(item.high_count),
+            medium_count: toNumber(item.medium_count),
+            low_count: toNumber(item.low_count),
+            normal_count: toNumber(item.normal_count)
+        }));
+    };
+
+    const normalizeActionDays = (items = []) => {
+        return items.map((item) => ({
+            ...item,
+            on_count: toNumber(item.on_count),
+            off_count: toNumber(item.off_count)
+        }));
+    };
 
     // Fetch data
     useEffect(() => {
@@ -60,11 +81,11 @@ export default function Statistics() {
             }
 
             if (alertByDaysResponse.success) {
-                setAlertCountByDays(alertByDaysResponse.data);
+                setAlertCountByDays(normalizeAlertDays(alertByDaysResponse.data));
             }
 
             if (actionByDaysResponse.success) {
-                setActionCountByDays(actionByDaysResponse.data);
+                setActionCountByDays(normalizeActionDays(actionByDaysResponse.data));
             }
         } catch (err) {
             console.error('Error fetching statistics:', err);
@@ -84,14 +105,23 @@ export default function Statistics() {
 
     const formatDate = (dateStr) => {
         if (!dateStr) return '';
-        const date = new Date(dateStr);
+
+        // Avoid timezone shift for YYYY-MM-DD date-only strings.
+        const date = /^\d{4}-\d{2}-\d{2}$/.test(dateStr)
+            ? new Date(`${dateStr}T00:00:00`)
+            : new Date(dateStr);
+
+        if (Number.isNaN(date.getTime())) {
+            return '';
+        }
+
         const day = date.getDate();
         const month = date.getMonth() + 1;
         return `${day}/${month}`;
     };
 
     const getTotalAlertsByDays = () => {
-        return alertCountByDays.reduce((sum, day) => sum + (day.total_count || 0), 0);
+        return alertCountByDays.reduce((sum, day) => sum + toNumber(day.total_count), 0);
     };
 
     const getTotalActionsByDays = () => {
@@ -101,7 +131,7 @@ export default function Statistics() {
     };
 
     const getMaxValue = (data, key) => {
-        return Math.max(...data.map(d => d[key] || 0), 0);
+        return Math.max(...data.map((item) => toNumber(item[key])), 0);
     };
 
     if (loading && alertCount.total_count === 0 && actionCount.on_count + actionCount.off_count === 0) {

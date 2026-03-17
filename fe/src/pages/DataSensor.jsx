@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import MainLayout from '../components/MainLayout.jsx';
 import InformationLayout from '../components/InformationLayout.jsx';
 import dataSensorService from '../services/dataSensorService.jsx';
-import {formatNumber} from '../utils/formatter.js';
+import {formatNumber, formatTime} from '../utils/formatter.js';
 
 export default function DataSensor(){
     const [data, setData] = useState([]);
@@ -46,8 +46,6 @@ export default function DataSensor(){
             };
 
             const response = await dataSensorService.getSensorHistory(params);
-
-            console.log(response)
             
             if (response.success) {
                 setData(response.data.data || []);
@@ -107,7 +105,7 @@ export default function DataSensor(){
         { key: 'humidity', header: 'Độ ẩm', accessor: 'humidity', render: (value) => (<span className="font-medium text-blue-400">{formatNumber(value)}%</span>)},
         { key: 'light', header: 'Ánh sáng', accessor: 'light', render: (value) => (<span className="font-medium text-yellow-500">{formatNumber(value)} %(Lux)</span>)},
         { key: 'gas', header: 'Khí gas', accessor: 'gas', render: (value) => (<span className="font-medium text-gray-400">{formatNumber(value)} %(ppm)</span>)},
-        { key: 'timestamp', header: 'Thời gian', accessor: 'timestamp', cellClassName:'', render: (value) => (<span className="text-sm text-gray-500">{new Date(value).toLocaleString()}</span>)},
+        { key: 'timestamp', header: 'Thời gian', accessor: 'timestamp', cellClassName:'', render: (value) => (<span className="text-sm text-gray-500">{formatTime(value)}</span>)},
     ]
     return(
         <MainLayout>
