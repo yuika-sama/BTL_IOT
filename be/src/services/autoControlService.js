@@ -113,15 +113,142 @@ const emitDeviceUpdate = (mqttService, payload) => {
     mqttService.io.emit('device_status_update', payload);
 };
 
-const applyAutoControlForDevice = async (device, mqttService, trigger = 'auto-sync') => {
+const syncDeviceStateToHardware = async (device, mqttService) => {
+    const targetValue = Number(device.value || 0);
     const autoToggle = Number(device.auto_toggle || 0);
-    if (autoToggle !== 1) {
+    const knownHardwareValue = typeof mqttService?.getKnownDeviceState === 'function'
+        ? mqttService.getKnownDeviceState(device.name)
+        : null;
+
+    if (knownHardwareValue !== null && knownHardwareValue === targetValue) {
         emitDeviceUpdate(mqttService, {
             device_id: device.id,
-            value: Number(device.value || 0),
+            value: targetValue,
+            status: 'success',
+            auto_toggle: autoToggle
+        });
+        return;
+    }
+
+    if (!mqttService || !mqttService.isConnected() || (typeof mqttService.isHardwareConnected === 'function' && !mqttService.isHardwareConnected())) {
+        emitDeviceUpdate(mqttService, {
+            device_id: device.id,
+            value: targetValue,
             status: device.status,
             auto_toggle: autoToggle
         });
+        return;
+    }
+
+    const commandPrefix = resolveDeviceCommandPrefix(device.name);
+    const command = `${commandPrefix}_${targetValue === 1 ? 'ON' : 'OFF'}`;
+    const actionHistoryId = randomUUID();
+
+    if (!mqttService || !mqttService.isConnected() || (typeof mqttService.isHardwareConnected === 'function' && !mqttService.isHardwareConnected())) {
+        emitDeviceUpdate(mqttService, {
+            device_id: device.id,
+            value: currentValue,
+            status: device.status,
+            auto_toggle: autoToggle
+        });
+        return;
+    }
+
+    await query(
+        `
+            UPDATE devices
+            SET status = ?
+            WHERE id = ?
+        `,
+        ['waiting', device.id]
+    );
+
+    await query(
+        `
+            INSERT INTO action_history (id, device_id, command, executor, status, created_at)
+            VALUES (?, ?, ?, ?, ?, NOW())
+        `,
+        [actionHistoryId, device.id, command, 'system', 'waiting']
+    );
+
+    emitDeviceUpdate(mqttService, {
+        device_id: device.id,
+        value: targetValue,
+        status: 'waiting',
+        auto_toggle: autoToggle
+    });
+
+    try {
+        await mqttService.sendCommandAndWait(device.name, command, targetValue, 6000);
+
+        await query(
+            `
+                UPDATE devices
+                SET value = ?, status = ?
+                WHERE id = ?
+            `,
+            [targetValue, 'success', device.id]
+        );
+
+        await query(
+            `
+                UPDATE action_history
+                SET status = ?
+                WHERE id = ?
+            `,
+            ['success', actionHistoryId]
+        );
+
+        emitDeviceUpdate(mqttService, {
+            device_id: device.id,
+            value: targetValue,
+            status: 'success',
+            auto_toggle: autoToggle
+        });
+    } catch (error) {
+        await query(
+            `
+                UPDATE devices
+                SET status = ?
+                WHERE id = ?
+            `,
+            ['failed', device.id]
+        );
+
+        await query(
+            `
+                UPDATE action_history
+                SET status = ?
+                WHERE id = ?
+            `,
+            ['failed', actionHistoryId]
+        );
+
+        emitDeviceUpdate(mqttService, {
+            device_id: device.id,
+            value: targetValue,
+            status: 'failed',
+            auto_toggle: autoToggle
+        });
+    }
+};
+
+const applyAutoControlForDevice = async (device, mqttService, trigger = 'auto-sync') => {
+    const autoToggle = Number(device.auto_toggle || 0);
+    const shouldForceHardwareSync = ['mqtt-connect', 'device-sync', 'socket-connect', 'toggle-auto', 'manual-sync'].includes(trigger);
+
+    if (autoToggle !== 1) {
+        if (!shouldForceHardwareSync) {
+            emitDeviceUpdate(mqttService, {
+                device_id: device.id,
+                value: Number(device.value || 0),
+                status: device.status,
+                auto_toggle: autoToggle
+            });
+            return;
+        }
+
+        await syncDeviceStateToHardware(device, mqttService);
         return;
     }
 
@@ -134,13 +261,29 @@ const applyAutoControlForDevice = async (device, mqttService, trigger = 'auto-sy
     const targetValue = autoDecision.shouldTurnOn ? 1 : 0;
 
     if (currentValue === targetValue) {
-        emitDeviceUpdate(mqttService, {
-            device_id: device.id,
-            value: currentValue,
-            status: device.status,
-            auto_toggle: autoToggle
-        });
-        return;
+        const knownHardwareValue = typeof mqttService?.getKnownDeviceState === 'function'
+            ? mqttService.getKnownDeviceState(device.name)
+            : null;
+
+        if (knownHardwareValue === targetValue) {
+            emitDeviceUpdate(mqttService, {
+                device_id: device.id,
+                value: currentValue,
+                status: device.status,
+                auto_toggle: autoToggle
+            });
+            return;
+        }
+
+        if (!shouldForceHardwareSync) {
+            emitDeviceUpdate(mqttService, {
+                device_id: device.id,
+                value: currentValue,
+                status: device.status,
+                auto_toggle: autoToggle
+            });
+            return;
+        }
     }
 
     const commandPrefix = resolveDeviceCommandPrefix(device.name);
@@ -170,34 +313,6 @@ const applyAutoControlForDevice = async (device, mqttService, trigger = 'auto-sy
         status: 'waiting',
         auto_toggle: autoToggle
     });
-
-    if (!mqttService || !mqttService.isConnected()) {
-        await query(
-            `
-                UPDATE devices
-                SET status = ?
-                WHERE id = ?
-            `,
-            ['failed', device.id]
-        );
-
-        await query(
-            `
-                UPDATE action_history
-                SET status = ?
-                WHERE id = ?
-            `,
-            ['failed', actionHistoryId]
-        );
-
-        emitDeviceUpdate(mqttService, {
-            device_id: device.id,
-            value: currentValue,
-            status: 'failed',
-            auto_toggle: autoToggle
-        });
-        return;
-    }
 
     try {
         await mqttService.sendCommandAndWait(device.name, command, targetValue, 6000);

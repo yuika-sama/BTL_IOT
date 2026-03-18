@@ -5,7 +5,7 @@
 #include <WiFiManager.h>
 
 // --- CẤU HÌNH MQTT ---
-const char* mqtt_server   = "192.168.100.154"; 
+const char* mqtt_server   = "192.168.88.214"; 
 const int   mqtt_port     = 2204;           
 const char* mqtt_username = "yuika";
 const char* mqtt_password = "G1nkosora";
@@ -157,7 +157,7 @@ void loop() {
         send_sensor_data("light", ldr_val);
         
         // Đọc và gửi dữ liệu Gas
-        int gas_analog = analogRead(PIN_MQ4_A0);
+        int gas_analog = (1.0 - (analogRead(PIN_MQ4_A0)/1023))*100.0;
         send_sensor_data("gas_raw", (float)gas_analog);
 
         // Cảnh báo Gas qua Serial

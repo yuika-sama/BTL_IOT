@@ -17,6 +17,8 @@ class MqttService {
         this.latestDeviceStatus = {};
         this.pendingStatusWaiters = new Map();
         this.latestSensorThresholdState = new Map();
+        this.lastHardwareActivityAt = 0;
+        this.hardwareHeartbeatTimeoutMs = Number(process.env.HARDWARE_HEARTBEAT_TIMEOUT_MS || 15000);
         const brokerUrl = process.env.MQTT_SERVER || 'mqtt://localhost';
         const brokerPort = Number(process.env.MQTT_PORT || 2204);
         this.mqttClient = mqtt.connect(brokerUrl, {
@@ -235,6 +237,22 @@ class MqttService {
         this.emitSensorUpdate(readings);
     }
 
+    markHardwareActivity() {
+        this.lastHardwareActivityAt = Date.now();
+    }
+
+    isHardwareConnected() {
+        if (!this.isConnected()) {
+            return false;
+        }
+
+        if (!this.lastHardwareActivityAt) {
+            return false;
+        }
+
+        return Date.now() - this.lastHardwareActivityAt <= this.hardwareHeartbeatTimeoutMs;
+    }
+
     init() {
         this.mqttClient.on('connect', () => {
             // Đăng ký các topic mà ESP32 sẽ gửi lên
@@ -252,11 +270,16 @@ class MqttService {
 
         this.mqttClient.on('disconnect', () => {
             console.log('⚠️ [MQTT] Disconnected from Broker');
+            this.lastHardwareActivityAt = 0;
         });
 
         this.mqttClient.on('message', (topic, message) => {
             try {
                 const payload = JSON.parse(message.toString());
+
+                if (topic === 'sensor/data' || topic === 'device/status' || topic === 'device/sync') {
+                    this.markHardwareActivity();
+                }
                 
                 switch (topic) {
                     case 'sensor/data':
@@ -283,7 +306,12 @@ class MqttService {
 
                     case 'device/sync':
                         console.log(`🔄 [SYNC] Hardware ${payload.clientId} requested sync.`);
-                        // Tạm thời log lại, sau này sẽ query DB ở đây  
+                        syncAutoDevicesAndApplyControl({
+                            mqttService: this,
+                            trigger: 'device-sync'
+                        }).catch((error) => {
+                            console.error('❌ [AUTO] Sync on device/sync failed:', error.message);
+                        });
                         break;
                 }
             } catch (error) {
@@ -319,6 +347,20 @@ class MqttService {
         }
 
         return null;
+    }
+
+    getKnownDeviceState(deviceName = '') {
+        const stateKey = this.getStateKeyByDeviceName(deviceName);
+        if (!stateKey) {
+            return null;
+        }
+
+        const value = this.latestDeviceStatus[stateKey];
+        if (value === undefined || value === null) {
+            return null;
+        }
+
+        return Number(value) === 1 ? 1 : 0;
     }
 
     updateDeviceStatus(payload = {}) {
