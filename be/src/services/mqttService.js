@@ -400,6 +400,69 @@ class MqttService {
         return Boolean(this.mqttClient?.connected);
     }
 
+    createOperationError(code, message) {
+        const error = new Error(message);
+        error.code = code;
+        return error;
+    }
+
+    waitForConnected(timeoutMs = 10000) {
+        if (this.isConnected()) {
+            return Promise.resolve(true);
+        }
+
+        return new Promise((resolve) => {
+            let settled = false;
+            let timeoutId = null;
+            let reconnectIntervalId = null;
+
+            const cleanup = () => {
+                clearTimeout(timeoutId);
+                clearInterval(reconnectIntervalId);
+                this.mqttClient.off('connect', onConnect);
+            };
+
+            const finish = (isConnectedNow) => {
+                if (settled) {
+                    return;
+                }
+
+                settled = true;
+                cleanup();
+                resolve(Boolean(isConnectedNow));
+            };
+
+            const onConnect = () => {
+                finish(true);
+            };
+
+            this.mqttClient.on('connect', onConnect);
+
+            reconnectIntervalId = setInterval(() => {
+                if (this.isConnected()) {
+                    finish(true);
+                    return;
+                }
+
+                try {
+                    this.mqttClient.reconnect();
+                } catch (error) {
+                    // Keep waiting until timeout to allow built-in reconnect logic.
+                }
+            }, 2000);
+
+            timeoutId = setTimeout(() => {
+                finish(this.isConnected());
+            }, timeoutMs);
+
+            try {
+                this.mqttClient.reconnect();
+            } catch (error) {
+                // Ignore and rely on interval + mqtt auto reconnect.
+            }
+        });
+    }
+
     publishControl(command) {
         return new Promise((resolve, reject) => {
             if (!this.isConnected()) {
@@ -433,7 +496,13 @@ class MqttService {
                 return;
             }
 
-            const timeoutId = setTimeout(() => {
+            let settled = false;
+
+            const cleanupWaiter = (timeoutId) => {
+                if (!timeoutId) {
+                    return;
+                }
+
                 const waiters = this.pendingStatusWaiters.get(stateKey) || [];
                 const remaining = waiters.filter((waiter) => waiter.timeoutId !== timeoutId);
                 if (remaining.length) {
@@ -441,13 +510,48 @@ class MqttService {
                 } else {
                     this.pendingStatusWaiters.delete(stateKey);
                 }
-                reject(new Error('Timeout waiting for hardware confirmation'));
+            };
+
+            let timeoutId = null;
+
+            const onDisconnect = () => {
+                if (settled) {
+                    return;
+                }
+
+                settled = true;
+                clearTimeout(timeoutId);
+                cleanupWaiter(timeoutId);
+                this.mqttClient.off('disconnect', onDisconnect);
+                reject(this.createOperationError('MQTT_DISCONNECTED_DURING_WAIT', 'MQTT disconnected while waiting for hardware confirmation'));
+            };
+
+            this.mqttClient.on('disconnect', onDisconnect);
+
+            timeoutId = setTimeout(() => {
+                if (settled) {
+                    return;
+                }
+
+                settled = true;
+                cleanupWaiter(timeoutId);
+                this.mqttClient.off('disconnect', onDisconnect);
+                reject(this.createOperationError('HARDWARE_CONFIRM_TIMEOUT', 'Timeout waiting for hardware confirmation'));
             }, timeoutMs);
 
             const waiter = {
                 targetValue: normalizedTarget,
                 timeoutId,
-                resolve,
+                resolve: (result) => {
+                    if (settled) {
+                        return;
+                    }
+
+                    settled = true;
+                    clearTimeout(timeoutId);
+                    this.mqttClient.off('disconnect', onDisconnect);
+                    resolve(result);
+                },
                 reject
             };
 
@@ -459,12 +563,38 @@ class MqttService {
 
     async sendCommandAndWait(deviceName, command, targetValue, timeoutMs = 5000) {
         if (!this.isConnected()) {
-            throw new Error('MQTT is not connected');
+            throw this.createOperationError('MQTT_NOT_CONNECTED', 'MQTT is not connected');
         }
 
         const waitPromise = this.waitForDeviceState(deviceName, targetValue, timeoutMs);
         await this.publishControl(command);
         return waitPromise;
+    }
+
+    async sendCommandAndWaitWithReconnect(deviceName, command, targetValue, options = {}) {
+        const confirmationTimeoutMs = Number(options.confirmationTimeoutMs || 6000);
+        const reconnectTimeoutMs = Number(options.reconnectTimeoutMs || 10000);
+
+        const ensureFirstConnection = await this.waitForConnected(reconnectTimeoutMs);
+        if (!ensureFirstConnection) {
+            throw this.createOperationError('MQTT_RECONNECT_TIMEOUT', 'Cannot reconnect to MQTT within the retry window');
+        }
+
+        try {
+            return await this.sendCommandAndWait(deviceName, command, targetValue, confirmationTimeoutMs);
+        } catch (error) {
+            const isDisconnectDuringOperation = error?.code === 'MQTT_DISCONNECTED_DURING_WAIT' || error?.code === 'MQTT_NOT_CONNECTED';
+            if (!isDisconnectDuringOperation) {
+                throw error;
+            }
+
+            const reconnected = await this.waitForConnected(reconnectTimeoutMs);
+            if (!reconnected) {
+                throw this.createOperationError('MQTT_RECONNECT_TIMEOUT', 'Cannot reconnect to MQTT within the retry window');
+            }
+
+            return this.sendCommandAndWait(deviceName, command, targetValue, confirmationTimeoutMs);
+        }
     }
 }
 

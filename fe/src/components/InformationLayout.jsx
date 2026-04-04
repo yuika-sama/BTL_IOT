@@ -17,6 +17,11 @@ export default function InformationLayout({
     onFilterChange,
     onSearch,
     onSort,
+    searchPlaceholder,
+    searchOnType = false,
+    forceSearchFilter = null,
+    sortLabel = 'Sắp xếp',
+    defaultSortOrder = 'asc',
     children
 }) {
 
@@ -35,6 +40,11 @@ export default function InformationLayout({
                 onSearch={onSearch}
                 onFilterChange={onFilterChange}
                 onSort={onSort}
+                searchPlaceholder={searchPlaceholder}
+                searchOnType={searchOnType}
+                forceSearchFilter={forceSearchFilter}
+                sortLabel={sortLabel}
+                defaultSortOrder={defaultSortOrder}
             />
             <div className="mt-2">
                 {loading && (

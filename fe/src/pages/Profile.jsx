@@ -52,7 +52,7 @@ export default function Profile() {
                 {/* Right side - Document Viewer */}
                 <div className="rounded-3xl overflow-hidden shadow-xl border-2 border-gray-200">
                     <div className="bg-gradient-to-r from-slate-700 to-slate-800 text-white px-6 py-4 flex items-center justify-between shadow-md">
-                        <span className="text-sm font-bold">auth.docx</span>
+                        <span className="text-sm font-bold">API Docs.pdf</span>
                         <div className="flex gap-2">
                             <div className="w-3 h-3 bg-red-400 rounded-full"></div>
                             <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
@@ -61,7 +61,7 @@ export default function Profile() {
                     </div>
                     <div className="h-[525px] overflow-hidden bg-gray-50">
                         <iframe 
-                            src="https://drive.google.com/file/d/1rFPcBTtTfo_RcIVNclF9EmalFKFXxl4o/preview" 
+                            src="https://drive.google.com/file/d/1F2xOHZI4u1Z6DFZcQblp4DGqfz6keGVg/preview" 
                             className="w-full h-full border-0"
                             title="API Documentation"
                         />

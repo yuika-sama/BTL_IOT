@@ -22,10 +22,10 @@ export default function DataSensor(){
 
     const filterOptions = [
         {type: 'all', displayText: 'Tất cả'},
-        {type: 'temperature', displayText: 'Nhiệt độ'},
-        {type: 'humidity', displayText: 'Độ ẩm'},
-        {type: 'light', displayText: 'Ánh sáng'},
-        {type: 'gas', displayText: 'Khí gas'},
+        {type: 'temperature', displayText: 'Nhiệt kế'},
+        {type: 'humidity', displayText: 'Máy đo độ ẩm'},
+        {type: 'light', displayText: 'Quang cảm'},
+        {type: 'gas', displayText: 'Chuông báo gas'},
         {type: 'time', displayText: 'Thời gian'},
     ]
 
@@ -101,10 +101,10 @@ export default function DataSensor(){
 
     const columns = [
         { key: 'id',header: 'ID', accessor: 'id', cellClassName:'font-medium'},
-        { key: 'temperature', header: 'Nhiệt độ', accessor: 'temperature', render: (value) => (<span className="font-medium text-red-500">{formatNumber(value)}℃</span>)},
-        { key: 'humidity', header: 'Độ ẩm', accessor: 'humidity', render: (value) => (<span className="font-medium text-blue-400">{formatNumber(value)}%</span>)},
-        { key: 'light', header: 'Ánh sáng', accessor: 'light', render: (value) => (<span className="font-medium text-yellow-500">{formatNumber(value)} %(Lux)</span>)},
-        { key: 'gas', header: 'Khí gas', accessor: 'gas', render: (value) => (<span className="font-medium text-gray-400">{formatNumber(value)} %(ppm)</span>)},
+        { key: 'temperature', header: 'Nhiệt kế', accessor: 'temperature', render: (value) => (<span className="font-medium text-red-500">{formatNumber(value)}℃</span>)},
+        { key: 'humidity', header: 'Máy đo độ ẩm', accessor: 'humidity', render: (value) => (<span className="font-medium text-blue-400">{formatNumber(value)}%</span>)},
+        { key: 'light', header: 'Quang cảm', accessor: 'light', render: (value) => (<span className="font-medium text-yellow-500">{formatNumber(value)} %(Lux)</span>)},
+        { key: 'gas', header: 'Chuông báo gas', accessor: 'gas', render: (value) => (<span className="font-medium text-gray-400">{formatNumber(value)} %(ppm)</span>)},
         { key: 'timestamp', header: 'Thời gian', accessor: 'timestamp', cellClassName:'', render: (value) => (<span className="text-sm text-gray-500">{formatTime(value)}</span>)},
     ]
     return(

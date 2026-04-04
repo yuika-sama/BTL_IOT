@@ -16,17 +16,16 @@ export default function ActionHistory(){
     });
     const [filters, setFilters] = useState({
         search: '',
-        filter: 'all',
+        sensorFilter: 'all',
         order: 'desc'
     });
 
     const filterOptions = [
         {type: 'all', displayText: 'Tất cả'},
-        {type: 'name', displayText: 'Tên thiết bị'},
-        {type: 'action', displayText: 'Hành động'},
-        {type: 'status', displayText: 'Trạng thái'},
-        {type: 'user', displayText: 'Thực thi bởi'},
-        {type: 'time', displayText: 'Thời gian'},
+        {type: 'humidity', displayText: 'Độ ẩm'},
+        {type: 'gas', displayText: 'Gas'},
+        {type: 'light', displayText: 'Ánh sáng'},
+        {type: 'temperature', displayText: 'Nhiệt độ'},
     ]
 
     // Fetch data từ API
@@ -42,7 +41,10 @@ export default function ActionHistory(){
             const params = {
                 page: pagination.page,
                 limit: pagination.limit,
-                ...filters
+                search: filters.search,
+                filter: 'time',
+                sensorFilter: filters.sensorFilter,
+                order: filters.order
             };
 
             const response = await actionHistoryService.getAll(params);
@@ -57,7 +59,7 @@ export default function ActionHistory(){
             }
         } catch (err) {
             setError(err.message || 'Có lỗi xảy ra khi tải dữ liệu');
-            console.error('Error fetching action history:', err);
+            console.error('Có lỗi xảy ra khi tải dữ liệu:', err);
         } finally {
             setLoading(false);
         }
@@ -78,16 +80,15 @@ export default function ActionHistory(){
     const handleFilterChange = (filterType) => {
         setFilters(prev => ({ 
             ...prev, 
-            filter: filterType
+            sensorFilter: filterType
         }));
         setPagination(prev => ({ ...prev, page: 1 }));
     };
 
-    const handleSearch = (searchValue, filterType) => {
+    const handleSearch = (searchValue) => {
         setFilters(prev => ({ 
             ...prev, 
-            search: searchValue,
-            filter: filterType || prev.filter
+            search: searchValue
         }));
         setPagination(prev => ({ ...prev, page: 1 }));
     };
@@ -190,6 +191,11 @@ export default function ActionHistory(){
                 loading={loading}
                 error={error}
                 pagination={pagination}
+                searchPlaceholder="Tìm theo thời gian"
+                searchOnType={true}
+                forceSearchFilter="time"
+                sortLabel="Sắp xếp"
+                defaultSortOrder="desc"
                 onPageChange={handlePageChange}
                 onLimitChange={handleLimitChange}
                 onFilterChange={handleFilterChange}

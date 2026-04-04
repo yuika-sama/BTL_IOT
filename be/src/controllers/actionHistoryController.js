@@ -13,11 +13,37 @@ const SEARCH_FILTER_MAP = {
     time: "DATE_FORMAT(ah.created_at, '%Y-%m-%d %H:%i:%s') LIKE ?"
 };
 
+const SENSOR_FILTER_KEYWORD_MAP = {
+    humidity: ['%hum%', '%do am%', '%độ ẩm%', '%am%'],
+    gas: ['%gas%', '%khi gas%', '%khí gas%', '%khi%'],
+    light: ['%light%', '%anh sang%', '%ánh sáng%', '%ldr%'],
+    temperature: ['%temp%', '%temperature%', '%nhiet%', '%nhiệt độ%']
+};
+
+const buildSensorFilterCondition = (sensorFilter = 'all') => {
+    const sensorKey = String(sensorFilter || 'all').trim().toLowerCase();
+    const keywords = SENSOR_FILTER_KEYWORD_MAP[sensorKey];
+
+    if (!keywords || !keywords.length) {
+        return null;
+    }
+
+    return {
+        sql: `(${keywords.map(() => 'LOWER(d.name) LIKE ?').join(' OR ')})`,
+        params: keywords
+    };
+};
+
 const parseTimeSearchKeyword = (value) => {
-    const keyword = String(value || '').trim().replace(',', ' ');
+    const keyword = String(value || '')
+        .trim()
+        .replace(/,/g, ' ')
+        .replace(/\s+/g, ' ');
     if (!keyword) {
         return null;
     }
+
+    const pad2 = (numLike) => String(numLike).padStart(2, '0');
 
     const secondDmyMatch = keyword.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/);
     if (secondDmyMatch) {
@@ -31,10 +57,101 @@ const parseTimeSearchKeyword = (value) => {
         return { type: 'minute', value: `${year}-${month}-${day} ${hour}:${minute}` };
     }
 
+    const hourDmyMatch = keyword.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2})$/);
+    if (hourDmyMatch) {
+        const [, day, month, year, hour] = hourDmyMatch;
+        return { type: 'hour', value: `${year}-${month}-${day} ${hour}` };
+    }
+
     const dayDmyMatch = keyword.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
     if (dayDmyMatch) {
         const [, day, month, year] = dayDmyMatch;
         return { type: 'day', value: `${year}-${month}-${day}` };
+    }
+
+    // Support both MM/YYYY and DD/YYYY patterns.
+    const secondShortYearMatch = keyword.match(/^(\d{1,2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/);
+    if (secondShortYearMatch) {
+        const [, firstPartRaw, year, hour, minute, second] = secondShortYearMatch;
+        const firstPart = Number(firstPartRaw);
+        const paddedFirstPart = pad2(firstPartRaw);
+
+        if (firstPart >= 1 && firstPart <= 12) {
+            return {
+                type: 'monthYearSecond',
+                value: `${paddedFirstPart}/${year} ${hour}:${minute}:${second}`
+            };
+        }
+
+        if (firstPart >= 13 && firstPart <= 31) {
+            return {
+                type: 'dayYearSecond',
+                value: `${paddedFirstPart}/${year} ${hour}:${minute}:${second}`
+            };
+        }
+    }
+
+    const minuteShortYearMatch = keyword.match(/^(\d{1,2})\/(\d{4})\s+(\d{2}):(\d{2})$/);
+    if (minuteShortYearMatch) {
+        const [, firstPartRaw, year, hour, minute] = minuteShortYearMatch;
+        const firstPart = Number(firstPartRaw);
+        const paddedFirstPart = pad2(firstPartRaw);
+
+        if (firstPart >= 1 && firstPart <= 12) {
+            return {
+                type: 'monthYearMinute',
+                value: `${paddedFirstPart}/${year} ${hour}:${minute}`
+            };
+        }
+
+        if (firstPart >= 13 && firstPart <= 31) {
+            return {
+                type: 'dayYearMinute',
+                value: `${paddedFirstPart}/${year} ${hour}:${minute}`
+            };
+        }
+    }
+
+    const hourShortYearMatch = keyword.match(/^(\d{1,2})\/(\d{4})\s+(\d{2})$/);
+    if (hourShortYearMatch) {
+        const [, firstPartRaw, year, hour] = hourShortYearMatch;
+        const firstPart = Number(firstPartRaw);
+        const paddedFirstPart = pad2(firstPartRaw);
+
+        if (firstPart >= 1 && firstPart <= 12) {
+            return {
+                type: 'monthYearHour',
+                value: `${paddedFirstPart}/${year} ${hour}`
+            };
+        }
+
+        if (firstPart >= 13 && firstPart <= 31) {
+            return {
+                type: 'dayYearHour',
+                value: `${paddedFirstPart}/${year} ${hour}`
+            };
+        }
+    }
+
+    const shortYearMatch = keyword.match(/^(\d{1,2})\/(\d{4})$/);
+    if (shortYearMatch) {
+        const [, firstPartRaw, year] = shortYearMatch;
+        const firstPart = Number(firstPartRaw);
+        const paddedFirstPart = pad2(firstPartRaw);
+
+        if (firstPart >= 1 && firstPart <= 12) {
+            return {
+                type: 'monthYear',
+                value: `${paddedFirstPart}/${year}`
+            };
+        }
+
+        if (firstPart >= 13 && firstPart <= 31) {
+            return {
+                type: 'dayYear',
+                value: `${paddedFirstPart}/${year}`
+            };
+        }
     }
 
     const secondYmdMatch = keyword.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})$/);
@@ -47,6 +164,12 @@ const parseTimeSearchKeyword = (value) => {
     if (minuteYmdMatch) {
         const [, year, month, day, hour, minute] = minuteYmdMatch;
         return { type: 'minute', value: `${year}-${month}-${day} ${hour}:${minute}` };
+    }
+
+    const hourYmdMatch = keyword.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2})$/);
+    if (hourYmdMatch) {
+        const [, year, month, day, hour] = hourYmdMatch;
+        return { type: 'hour', value: `${year}-${month}-${day} ${hour}` };
     }
 
     const dayYmdMatch = keyword.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -70,17 +193,29 @@ const buildTimeCondition = (column, parsedTime) => {
         };
     }
 
-    if (parsedTime.type === 'minute') {
+    const dateFormatByType = {
+        hour: '%Y-%m-%d %H',
+        minute: '%Y-%m-%d %H:%i',
+        second: '%Y-%m-%d %H:%i:%s',
+        monthYear: '%m/%Y',
+        monthYearHour: '%m/%Y %H',
+        monthYearMinute: '%m/%Y %H:%i',
+        monthYearSecond: '%m/%Y %H:%i:%s',
+        dayYear: '%d/%Y',
+        dayYearHour: '%d/%Y %H',
+        dayYearMinute: '%d/%Y %H:%i',
+        dayYearSecond: '%d/%Y %H:%i:%s'
+    };
+
+    const mysqlDateFormat = dateFormatByType[parsedTime.type];
+    if (mysqlDateFormat) {
         return {
-            sql: `DATE_FORMAT(${column}, '%Y-%m-%d %H:%i') = ?`,
+            sql: `DATE_FORMAT(${column}, '${mysqlDateFormat}') = ?`,
             param: parsedTime.value
         };
     }
 
-    return {
-        sql: `DATE_FORMAT(${column}, '%Y-%m-%d %H:%i:%s') = ?`,
-        param: parsedTime.value
-    };
+    return null;
 };
 
 const formatDateToYMD = (date) => {
@@ -90,15 +225,16 @@ const formatDateToYMD = (date) => {
     return `${year}-${month}-${day}`;
 };
 
-const buildWhereClause = ({ search = '', filter = 'all' } = {}) => {
+const buildWhereClause = ({ search = '', filter = 'all', sensorFilter = 'all' } = {}) => {
     const conditions = [];
     const params = [];
 
     const keyword = String(search).trim();
-    const filterKey = String(filter || 'all').trim();
+    const filterKey = String(filter || 'all').trim().toLowerCase();
     const wildcard = `%${keyword}%`;
     const parsedTime = parseTimeSearchKeyword(keyword);
     const timeCondition = buildTimeCondition('ah.created_at', parsedTime);
+    const sensorCondition = buildSensorFilterCondition(sensorFilter);
 
     if (keyword) {
         if (filterKey === 'time') {
@@ -132,6 +268,11 @@ const buildWhereClause = ({ search = '', filter = 'all' } = {}) => {
 
             conditions.push(`(${allConditions.join(' OR ')})`);
         }
+    }
+
+    if (sensorCondition) {
+        conditions.push(sensorCondition.sql);
+        params.push(...sensorCondition.params);
     }
 
     if (!conditions.length) {

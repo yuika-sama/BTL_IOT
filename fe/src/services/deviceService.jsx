@@ -25,6 +25,7 @@ const deviceService = {
     return {
       success: Boolean(response?.success),
       data: response?.data || { id: deviceId },
+      message: response?.message || '',
     };
   },
   toggleAutoMode: async (deviceId) => {
@@ -32,6 +33,7 @@ const deviceService = {
     return {
       success: Boolean(response?.success),
       data: response?.data || { id: deviceId },
+      message: response?.message || '',
     };
   }
 };

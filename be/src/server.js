@@ -6,7 +6,7 @@ const { syncAutoDevicesAndApplyControl } = require('./services/autoControlServic
 
 const PORT = 5000;
 const SOCKET_STATUS_EVENT = 'connection_status';
-const HARDWARE_MONITOR_INTERVAL_MS = 3000;
+const CONNECTION_MONITOR_INTERVAL_MS = 2000;
 const server = http.createServer(app);
 
 // Khởi tạo Socket.io với CORS
@@ -24,49 +24,36 @@ const io = new Server(server, {
 const mqttService = new MqttService(io);
 app.locals.mqttService = mqttService;
 
-function isSystemReadyForSocket() {
-    return mqttService.isConnected() && mqttService.isHardwareConnected();
+function buildSocketConnectionStatus() {
+    const mqttConnected = mqttService.isConnected();
+    const hardwareConnected = mqttService.isHardwareConnected();
+    const success = mqttConnected && hardwareConnected;
+
+    let message = 'He thong ket noi on dinh';
+    if (!mqttConnected) {
+        message = 'Mat ket noi MQTT toi backend';
+    } else if (!hardwareConnected) {
+        message = 'Mat ket noi toi thiet bi (khong co heartbeat)';
+    }
+
+    return {
+        success,
+        mqttConnected,
+        hardwareConnected,
+        message,
+        timestamp: new Date().toISOString()
+    };
 }
 
-let lastReadyState = isSystemReadyForSocket();
 setInterval(() => {
-    const isReady = isSystemReadyForSocket();
-    if (isReady === lastReadyState) {
-        return;
-    }
-
-    lastReadyState = isReady;
-    if (!isReady) {
-        console.warn('⚠️ [Socket.io] Hardware offline. Disconnecting all socket clients.');
-        io.emit(SOCKET_STATUS_EVENT, {
-            success: false,
-            message: 'Hardware is offline. Socket connections are closed.'
-        });
-        io.disconnectSockets(true);
-        return;
-    }
-
-    console.log('✅ [Socket.io] Hardware online. New socket connections are accepted.');
-}, HARDWARE_MONITOR_INTERVAL_MS);
+    io.emit(SOCKET_STATUS_EVENT, buildSocketConnectionStatus());
+}, CONNECTION_MONITOR_INTERVAL_MS);
 
 // Lắng nghe kết nối
 io.on('connection', (socket) => {
     console.log(`🔌 [Socket.io] New Client Connected: ${socket.id}`);
 
-    if (!isSystemReadyForSocket()) {
-        console.warn(`⚠️ [Socket.io] Rejecting client ${socket.id}: MQTT/hardware is not ready`);
-        socket.emit(SOCKET_STATUS_EVENT, {
-            success: false,
-            message: 'MQTT or hardware is not connected. Socket connection closed.'
-        });
-        setTimeout(() => socket.disconnect(true), 100);
-        return;
-    }
-
-    socket.emit(SOCKET_STATUS_EVENT, {
-        success: true,
-        message: 'Socket connected successfully. MQTT and hardware are ready.'
-    });
+    socket.emit(SOCKET_STATUS_EVENT, buildSocketConnectionStatus());
 
     syncAutoDevicesAndApplyControl({
         mqttService,
@@ -77,12 +64,9 @@ io.on('connection', (socket) => {
 
     // Nhận lệnh điều khiển
     socket.on('send_command', (command) => {
-        if (!isSystemReadyForSocket()) {
-            socket.emit(SOCKET_STATUS_EVENT, {
-                success: false,
-                message: 'Hardware is offline. Socket connection closed.'
-            });
-            setTimeout(() => socket.disconnect(true), 100);
+        const currentStatus = buildSocketConnectionStatus();
+        if (!currentStatus.success) {
+            socket.emit(SOCKET_STATUS_EVENT, currentStatus);
             return;
         }
 

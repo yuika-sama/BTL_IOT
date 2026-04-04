@@ -16,6 +16,7 @@ const buildListParams = (params = {}) => {
     limit: params.limit,
     search: params.search,
     filter: params.filter,
+    sensorFilter: params.sensorFilter,
     order: params.order,
   };
 
@@ -34,7 +35,10 @@ const actionHistoryService = {
 
     // === Xử lý thay thế các cụm từ trong params.search ===
     let formattedParams = {...params};
-    if (!isValidDateTime(formattedParams.search)) {
+    if (formattedParams.filter === 'time' && isValidDateTime(formattedParams.search)) {
+      // === Xử lý format search theo thời gian ===
+      formattedParams.search = formatDateTime(formattedParams.search);
+    } else if (!isValidDateTime(formattedParams.search)) {
       if (typeof formattedParams.search === 'string') {
         // 1. Định nghĩa từ điển thay thế
         const replacementMap = {
@@ -71,9 +75,6 @@ const actionHistoryService = {
           return replacementMap[matched.toLowerCase()];
         });
       }
-    } else {
-      // === Xử lý format search theo thời gian ===
-      formattedParams.search = formatDateTime(formattedParams.search);
     }
 
 

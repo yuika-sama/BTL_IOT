@@ -1,0 +1,412 @@
+{
+  "info": {
+    "_postman_id": "8126d7a2-2158-4ad6-bdfb-0c8dccb70f85",
+    "name": "IOT Backend API",
+    "description": "Collection test backend IoT (REST APIs).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000"
+    },
+    {
+      "key": "deviceId",
+      "value": "1"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                ""
+              ]
+            },
+            "description": "Kiem tra server dang chay"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "GET Dashboard Devices",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/devices",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "dashboard",
+                "devices"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Dashboard Initial Sensors",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/sensors/initial?limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "dashboard",
+                "sensors",
+                "initial"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "1..100"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Dashboard Latest Sensors",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/sensors/latest",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "dashboard",
+                "sensors",
+                "latest"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Data Sensors",
+      "item": [
+        {
+          "name": "GET Data Sensor History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/data-sensors?page=1&limit=10&search=&filter=all&order=desc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "data-sensors"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "search",
+                  "value": ""
+                },
+                {
+                  "key": "filter",
+                  "value": "all",
+                  "description": "all|temperature|humidity|light|gas|time"
+                },
+                {
+                  "key": "order",
+                  "value": "desc",
+                  "description": "asc|desc"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Alerts",
+      "item": [
+        {
+          "name": "GET Alerts List",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/alerts?page=1&limit=10&search=&filter=all&order=desc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "alerts"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "search",
+                  "value": ""
+                },
+                {
+                  "key": "filter",
+                  "value": "all",
+                  "description": "all|name|severity|title|description|time"
+                },
+                {
+                  "key": "order",
+                  "value": "desc",
+                  "description": "asc|desc"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Alerts Daily Count",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/alerts/daily-count?date=2026-04-04",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "alerts",
+                "daily-count"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "2026-04-04"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Alerts Count By Days",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/alerts/count-by-days?days=7",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "alerts",
+                "count-by-days"
+              ],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "7"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Action History",
+      "item": [
+        {
+          "name": "GET Action History List",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/action-history?page=1&limit=10&search=&filter=all&sensorFilter=all&order=desc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "action-history"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "search",
+                  "value": ""
+                },
+                {
+                  "key": "filter",
+                  "value": "all",
+                  "description": "all|name|action|status|user|time"
+                },
+                {
+                  "key": "sensorFilter",
+                  "value": "all",
+                  "description": "all|humidity|gas|light|temperature"
+                },
+                {
+                  "key": "order",
+                  "value": "desc",
+                  "description": "asc|desc"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Action History Daily Count",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/action-history/daily-count?date=2026-04-04",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "action-history",
+                "daily-count"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "2026-04-04"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Action History Count By Days",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/action-history/count-by-days?days=7",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "action-history",
+                "count-by-days"
+              ],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "7"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Devices Control",
+      "item": [
+        {
+          "name": "POST Toggle Device",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/devices/{{deviceId}}/toggle",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "devices",
+                "{{deviceId}}",
+                "toggle"
+              ]
+            },
+            "description": "Bat/tat thu cong thiet bi"
+          }
+        },
+        {
+          "name": "POST Toggle Auto Mode",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/devices/{{deviceId}}/toggle-auto",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "devices",
+                "{{deviceId}}",
+                "toggle-auto"
+              ]
+            },
+            "description": "Bat/tat che do tu dong"
+          }
+        }
+      ]
+    }
+  ]
+}

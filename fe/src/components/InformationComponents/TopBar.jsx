@@ -1,12 +1,49 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Search, ChevronDown } from 'lucide-react';
 
-export default function TopBar({ filterOptions = [], onSearch, onFilterChange, onSort }) {
+export default function TopBar({
+    filterOptions = [],
+    onSearch,
+    onFilterChange,
+    onSort,
+    searchPlaceholder = 'Tìm kiếm theo: Tên, thời gian(giờ, phút, giây), giá trị,...',
+    searchOnType = false,
+    forceSearchFilter = null,
+    sortLabel = 'Sắp xếp',
+    defaultSortOrder = 'asc'
+}) {
     const [searchValue, setSearchValue] = useState('');
     const [selectedFilter, setSelectedFilter] = useState('all');
-    const [sortOrder, setSortOrder] = useState('asc');
+    const [sortOrder, setSortOrder] = useState(defaultSortOrder);
     const [showFilterDropdown, setShowFilterDropdown] = useState(false);
     const [showSortDropdown, setShowSortDropdown] = useState(false);
+    const onSearchRef = useRef(onSearch);
+    const hasMountedSearchOnType = useRef(false);
+
+    useEffect(() => {
+        setSortOrder(defaultSortOrder);
+    }, [defaultSortOrder]);
+
+    useEffect(() => {
+        onSearchRef.current = onSearch;
+    }, [onSearch]);
+
+    useEffect(() => {
+        if (!searchOnType || !onSearchRef.current) {
+            return;
+        }
+
+        if (!hasMountedSearchOnType.current) {
+            hasMountedSearchOnType.current = true;
+            return;
+        }
+
+        const timeoutId = setTimeout(() => {
+            onSearchRef.current(searchValue, forceSearchFilter || selectedFilter);
+        }, 350);
+
+        return () => clearTimeout(timeoutId);
+    }, [searchOnType, searchValue, selectedFilter, forceSearchFilter]);
 
     const handleSearchChange = (e) => {
         const value = e.target.value;
@@ -14,8 +51,8 @@ export default function TopBar({ filterOptions = [], onSearch, onFilterChange, o
     };
 
     const handleSearch = () => {
-        if (onSearch) {
-            onSearch(searchValue, selectedFilter);
+        if (onSearchRef.current) {
+            onSearchRef.current(searchValue, forceSearchFilter || selectedFilter);
         }
     };
 
@@ -40,7 +77,7 @@ export default function TopBar({ filterOptions = [], onSearch, onFilterChange, o
                         value={searchValue}
                         onChange={handleSearchChange}
                         onKeyDown={handleKeyDown}
-                        placeholder="Tìm kiếm theo: Tên, thời gian(giờ, phút, giây), giá trị,..."
+                        placeholder={searchPlaceholder}
                         className="w-full pl-12 pr-20 py-3 bg-white border border-gray-200 rounded-3xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-lg"
                     />
                     <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
@@ -93,7 +130,7 @@ export default function TopBar({ filterOptions = [], onSearch, onFilterChange, o
                     className="group flex items-center gap-2 px-5 py-3.5 bg-white border-2 border-gray-200 rounded-3xl hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 min-w-[160px] shadow-lg hover:shadow-xl"
                 >
                     <span className="group-hover:text-blue-700 text-gray-700 font-medium">
-                        Sắp xếp: {sortOptions.find(opt => opt.value === sortOrder)?.label}
+                        {sortLabel}: {sortOptions.find(opt => opt.value === sortOrder)?.label}
                     </span>
                     <ChevronDown size={16} className={`group-hover:text-blue-600 text-gray-500 transition-all duration-300 ${showSortDropdown ? 'rotate-180' : ''}`} />
                 </button>

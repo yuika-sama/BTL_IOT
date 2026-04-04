@@ -7,12 +7,57 @@ import { Zap, ZapOff, Settings, Lightbulb } from 'lucide-react';
 export default function Automation() {
     const [devices, setDevices] = useState([]);
     const [loading, setLoading] = useState(true);
-    const { onDeviceStatus, isConnected } = useSocket();
+    const { onDeviceStatus, on, isConnected } = useSocket();
+    const [connectionState, setConnectionState] = useState({
+        socketConnected: false,
+        mqttConnected: false,
+        hardwareConnected: false
+    });
 
     // Fetch danh sách devices khi mount
     useEffect(() => {
         fetchDevices();
     }, []);
+
+    useEffect(() => {
+        setConnectionState((prev) => ({
+            ...prev,
+            socketConnected: isConnected()
+        }));
+
+        const handleSocketLost = () => {
+            setConnectionState({
+                socketConnected: false,
+                mqttConnected: false,
+                hardwareConnected: false
+            });
+        };
+
+        const unsubscribeConnectionStatus = on('connection_status', (statusPayload) => {
+            setConnectionState({
+                socketConnected: isConnected(),
+                mqttConnected: Boolean(statusPayload?.mqttConnected),
+                hardwareConnected: Boolean(statusPayload?.hardwareConnected)
+            });
+        });
+
+        const unsubscribeConnect = on('connect', () => {
+            setConnectionState((prev) => ({
+                ...prev,
+                socketConnected: true
+            }));
+        });
+
+        const unsubscribeDisconnect = on('disconnect', handleSocketLost);
+        const unsubscribeConnectError = on('connect_error', handleSocketLost);
+
+        return () => {
+            unsubscribeConnectionStatus();
+            unsubscribeConnect();
+            unsubscribeDisconnect();
+            unsubscribeConnectError();
+        };
+    }, [on, isConnected]);
 
     // Lắng nghe device status từ socket
     useEffect(() => {
@@ -50,6 +95,12 @@ export default function Automation() {
 
     // Handle toggle automation mode
     const handleToggleAutoMode = async (deviceId, currentAutoMode) => {
+        const canControlDevices = connectionState.socketConnected && connectionState.mqttConnected && connectionState.hardwareConnected;
+        if (!canControlDevices) {
+            window.alert('Mat ket noi toi thiet bi. Vui long thu lai sau.');
+            return;
+        }
+
         try {
             // Optimistic update
             setDevices(prev => prev.map(device => 
@@ -84,6 +135,13 @@ export default function Automation() {
         }
     };
 
+    const canControlDevices = connectionState.socketConnected && connectionState.mqttConnected && connectionState.hardwareConnected;
+    const connectionMessage = !connectionState.socketConnected
+        ? 'Mat ket noi Socket toi backend'
+        : (!connectionState.mqttConnected
+            ? 'Mat ket noi MQTT toi backend'
+            : (connectionState.hardwareConnected ? 'Da ket noi voi server' : 'Mat ket noi toi thiet bi'));
+
     // Map device name to icon and color
     const getDeviceIcon = (deviceName) => {
         const icons = {
@@ -111,12 +169,12 @@ export default function Automation() {
             {/* Socket Connection Status */}
             <div className="mb-6 flex items-center gap-3 bg-white px-5 py-1 rounded-2xl shadow-md border border-gray-100 w-fit">
                 <div className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                    isConnected() ? 'bg-green-500 shadow-lg shadow-green-200 animate-pulse' : 'bg-red-500 shadow-lg shadow-red-200'
+                    canControlDevices ? 'bg-green-500 shadow-lg shadow-green-200 animate-pulse' : 'bg-red-500 shadow-lg shadow-red-200'
                 }`}></div>
-                <span className="text-sm font-medium ${
-                    isConnected() ? 'text-green-700' : 'text-red-700'
-                }">
-                    {isConnected() ? 'Đã kết nối với server' : 'Mất kết nối'}
+                <span className={`text-sm font-medium ${
+                    canControlDevices ? 'text-green-700' : 'text-red-700'
+                }`}>
+                    {connectionMessage}
                 </span>
             </div>
 
@@ -196,8 +254,11 @@ export default function Automation() {
                                     {/* Toggle Button */}
                                     <button
                                         onClick={() => handleToggleAutoMode(device.id, device.auto_toggle)}
+                                        disabled={!canControlDevices}
                                         className={`relative w-16 h-8 rounded-full transition-all duration-300 shadow-md ${
                                             isAuto ? 'bg-gradient-to-r from-blue-500 to-blue-600 shadow-blue-200' : 'bg-gray-300 shadow-gray-200'
+                                        } ${
+                                            !canControlDevices ? 'opacity-60 cursor-not-allowed' : ''
                                         }`}
                                     >
                                         <div 

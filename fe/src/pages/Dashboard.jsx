@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import MainLayout from '../components/MainLayout.jsx';
 import InforCard from '../components/InforCard.jsx';
 import ToggleCard from '../components/ToggleCard.jsx';
@@ -26,15 +26,135 @@ export default function Dashboard() {
     const [devices, setDevices] = useState([]);
     const [loading, setLoading] = useState(true);
     const [chartDataLoaded, setChartDataLoaded] = useState(false);
+    const [sensorPulse, setSensorPulse] = useState({
+        temperature: false,
+        humidity: false,
+        light: false,
+        gas: false
+    });
+    const sensorDataRef = useRef(sensorData);
+    const pulseTimeoutsRef = useRef({});
 
     // Socket hook
-    const { onSensorData, onDeviceStatus, isConnected } = useSocket();
+    const { onSensorData, onDeviceStatus, on, isConnected } = useSocket();
+    const [connectionState, setConnectionState] = useState({
+        socketConnected: false,
+        mqttConnected: false,
+        hardwareConnected: false
+    });
 
     // Fetch danh sách devices và dữ liệu ban đầu cho biểu đồ khi mount
     useEffect(() => {
         fetchDevices();
         fetchInitialChartData();
     }, []);
+
+    useEffect(() => {
+        setConnectionState((prev) => ({
+            ...prev,
+            socketConnected: isConnected()
+        }));
+
+        const handleSocketLost = () => {
+            setConnectionState({
+                socketConnected: false,
+                mqttConnected: false,
+                hardwareConnected: false
+            });
+        };
+
+        const unsubscribeConnectionStatus = on('connection_status', (statusPayload) => {
+            setConnectionState({
+                socketConnected: isConnected(),
+                mqttConnected: Boolean(statusPayload?.mqttConnected),
+                hardwareConnected: Boolean(statusPayload?.hardwareConnected)
+            });
+        });
+
+        const unsubscribeConnect = on('connect', () => {
+            setConnectionState((prev) => ({
+                ...prev,
+                socketConnected: true
+            }));
+        });
+
+        const unsubscribeDisconnect = on('disconnect', handleSocketLost);
+        const unsubscribeConnectError = on('connect_error', handleSocketLost);
+
+        return () => {
+            unsubscribeConnectionStatus();
+            unsubscribeConnect();
+            unsubscribeDisconnect();
+            unsubscribeConnectError();
+        };
+    }, [on, isConnected]);
+
+    useEffect(() => {
+        sensorDataRef.current = sensorData;
+    }, [sensorData]);
+
+    useEffect(() => {
+        return () => {
+            Object.values(pulseTimeoutsRef.current).forEach((timeoutId) => clearTimeout(timeoutId));
+        };
+    }, []);
+
+    const clamp01 = (value) => Math.min(1, Math.max(0, value));
+
+    const normalizeSensorLevel = (value, min, max) => {
+        const numericValue = Number(value);
+        if (Number.isNaN(numericValue) || max <= min) {
+            return 0;
+        }
+
+        return clamp01((numericValue - min) / (max - min));
+    };
+
+    const triggerSensorPulse = (sensorKey) => {
+        setSensorPulse((prev) => ({
+            ...prev,
+            [sensorKey]: true
+        }));
+
+        if (pulseTimeoutsRef.current[sensorKey]) {
+            clearTimeout(pulseTimeoutsRef.current[sensorKey]);
+        }
+
+        pulseTimeoutsRef.current[sensorKey] = setTimeout(() => {
+            setSensorPulse((prev) => ({
+                ...prev,
+                [sensorKey]: false
+            }));
+        }, 750);
+    };
+
+    const updateSensorValueAndPulse = (sensorKey, nextValue) => {
+        const normalizedValue = Number(nextValue);
+        if (Number.isNaN(normalizedValue)) {
+            return;
+        }
+
+        const previousValue = Number(sensorDataRef.current?.[sensorKey] ?? 0);
+        if (Math.abs(previousValue - normalizedValue) >= 0.1) {
+            triggerSensorPulse(sensorKey);
+        }
+
+        setSensorData((prev) => ({
+            ...prev,
+            [sensorKey]: normalizedValue
+        }));
+    };
+
+    const appendChartDataPoint = (setSeries, timestamp, value) => {
+        setSeries((prev) => {
+            const newData = [...prev, {
+                timestamp,
+                value
+            }];
+
+            return newData.slice(-20);
+        });
+    };
 
     // Fetch dữ liệu ban đầu cho biểu đồ
     const fetchInitialChartData = async () => {
@@ -79,45 +199,24 @@ export default function Dashboard() {
         
         const unsubscribe = onSensorData((data) => {
             console.log('📊 Received sensor data:', data);
+            const numericValue = Number(data.value);
+            if (Number.isNaN(numericValue)) {
+                return;
+            }
             
             // Cập nhật current values
             if (data.type === 'temperature') {
-                setSensorData(prev => ({ ...prev, temperature: data.value }));
-                setTemperatureData(prev => {
-                    const newData = [...prev, { 
-                        timestamp: data.timestamp, 
-                        value: data.value 
-                    }];
-                    // Giữ 20 điểm gần nhất, dữ liệu mới thêm vào cuối
-                    return newData.slice(-20);
-                });
+                updateSensorValueAndPulse('temperature', numericValue);
+                appendChartDataPoint(setTemperatureData, data.timestamp, numericValue);
             } else if (data.type === 'humidity') {
-                setSensorData(prev => ({ ...prev, humidity: data.value }));
-                setHumidityData(prev => {
-                    const newData = [...prev, { 
-                        timestamp: data.timestamp, 
-                        value: data.value 
-                    }];
-                    return newData.slice(-20);
-                });
+                updateSensorValueAndPulse('humidity', numericValue);
+                appendChartDataPoint(setHumidityData, data.timestamp, numericValue);
             } else if (data.type === 'light') {
-                setSensorData(prev => ({ ...prev, light: data.value }));
-                setLightData(prev => {
-                    const newData = [...prev, { 
-                        timestamp: data.timestamp, 
-                        value: data.value 
-                    }];
-                    return newData.slice(-20);
-                });
+                updateSensorValueAndPulse('light', numericValue);
+                appendChartDataPoint(setLightData, data.timestamp, numericValue);
             } else if (data.type === 'gas' || data.type === 'dust') {
-                setSensorData(prev => ({ ...prev, gas: data.value }));
-                setGasData(prev => {
-                    const newData = [...prev, { 
-                        timestamp: data.timestamp, 
-                        value: data.value 
-                    }];
-                    return newData.slice(-20);
-                });
+                updateSensorValueAndPulse('gas', numericValue);
+                appendChartDataPoint(setGasData, data.timestamp, numericValue);
             }
         });
 
@@ -167,6 +266,12 @@ export default function Dashboard() {
 
     // Handle toggle device
     const handleToggleDevice = async (deviceId, currentValue, currentStatus) => {
+        const canControlDevices = connectionState.socketConnected && connectionState.mqttConnected && connectionState.hardwareConnected;
+        if (!canControlDevices) {
+            window.alert('Mất kết nối tới thiết bị. Vui lòng thử lại sau.');
+            return;
+        }
+
         try {
             // Optimistic update - set status to waiting
             setDevices(prev => prev.map(device => 
@@ -188,9 +293,14 @@ export default function Dashboard() {
                         }
                         : device
                 ));
+
+                if (response?.data?.status === 'failed' && response?.message) {
+                    window.alert(response.message);
+                }
             }
         } catch (error) {
             console.error('❌ Error toggling device:', error);
+            window.alert('Không thể kết nối tới backend. Vui lòng thử lại.');
             // Revert về trạng thái cũ nếu lỗi
             setDevices(prev => prev.map(device => 
                 device.id === deviceId
@@ -247,100 +357,191 @@ export default function Dashboard() {
     const formattedHumidityData = normalizeChartSeries(humidityData);
     const formattedLightData = normalizeChartSeries(lightData);
     const formattedGasData = normalizeChartSeries(gasData);
+    const sensorLevels = {
+        temperature: normalizeSensorLevel(sensorData.temperature, 0, 50),
+        humidity: normalizeSensorLevel(sensorData.humidity, 0, 100),
+        light: normalizeSensorLevel(sensorData.light, 0, 100),
+        gas: normalizeSensorLevel(sensorData.gas, 0, 100)
+    };
+
+    const isAnySensorPulsing = Object.values(sensorPulse).some(Boolean);
+    const pulseScaleBoost = isAnySensorPulsing ? 1.03 : 1;
+
+    const temperatureAmbientStyle = {
+        background: 'radial-gradient(circle, rgba(249, 115, 22, 0.7) 0%, rgba(249, 115, 22, 0) 72%)',
+        opacity: 0.14 + sensorLevels.temperature * 0.26 + (sensorPulse.temperature ? 0.12 : 0),
+        transform: `scale(${(0.9 + sensorLevels.temperature * 0.45 + (sensorPulse.temperature ? 0.08 : 0)) * pulseScaleBoost})`,
+        filter: `blur(${24 - sensorLevels.temperature * 5}px)`
+    };
+
+    const humidityAmbientStyle = {
+        background: 'radial-gradient(circle, rgba(56, 189, 248, 0.65) 0%, rgba(56, 189, 248, 0) 72%)',
+        opacity: 0.12 + sensorLevels.humidity * 0.25 + (sensorPulse.humidity ? 0.12 : 0),
+        transform: `scale(${(0.9 + sensorLevels.humidity * 0.42 + (sensorPulse.humidity ? 0.08 : 0)) * pulseScaleBoost})`,
+        filter: `blur(${24 - sensorLevels.humidity * 5}px)`
+    };
+
+    const lightAmbientStyle = {
+        background: 'radial-gradient(circle, rgba(250, 204, 21, 0.72) 0%, rgba(250, 204, 21, 0) 72%)',
+        opacity: 0.1 + sensorLevels.light * 0.32 + (sensorPulse.light ? 0.16 : 0),
+        transform: `scale(${(0.88 + sensorLevels.light * 0.5 + (sensorPulse.light ? 0.12 : 0)) * pulseScaleBoost})`,
+        filter: `blur(${22 - sensorLevels.light * 4}px)`
+    };
+
+    const gasAmbientStyle = {
+        background: 'radial-gradient(circle, rgba(107, 114, 128, 0.62) 0%, rgba(107, 114, 128, 0) 72%)',
+        opacity: 0.08 + sensorLevels.gas * 0.22 + (sensorPulse.gas ? 0.12 : 0),
+        transform: `scale(${(0.9 + sensorLevels.gas * 0.38 + (sensorPulse.gas ? 0.08 : 0)) * pulseScaleBoost})`,
+        filter: `blur(${25 - sensorLevels.gas * 4}px)`
+    };
+
+    const infoCardGlowStyle = {
+        transition: 'box-shadow 450ms ease, transform 450ms ease',
+        transform: isAnySensorPulsing ? 'translateY(-2px)' : 'translateY(0)',
+        boxShadow: `
+            0 18px 38px rgba(15, 23, 42, 0.08),
+            0 0 ${18 + sensorLevels.temperature * 24}px rgba(249, 115, 22, ${0.08 + (sensorPulse.temperature ? 0.08 : 0)}),
+            0 0 ${18 + sensorLevels.humidity * 24}px rgba(56, 189, 248, ${0.08 + (sensorPulse.humidity ? 0.08 : 0)}),
+            0 0 ${20 + sensorLevels.light * 26}px rgba(250, 204, 21, ${0.1 + (sensorPulse.light ? 0.12 : 0)}),
+            0 0 ${14 + sensorLevels.gas * 18}px rgba(107, 114, 128, ${0.06 + (sensorPulse.gas ? 0.08 : 0)})
+        `
+    };
+
+    const chartLightGasGlowStyle = {
+        transition: 'box-shadow 450ms ease, transform 450ms ease',
+        transform: sensorPulse.light || sensorPulse.gas ? 'translateY(-2px)' : 'translateY(0)',
+        boxShadow: `
+            0 16px 34px rgba(15, 23, 42, 0.06),
+            0 0 ${16 + sensorLevels.light * 24}px rgba(250, 204, 21, ${0.09 + (sensorPulse.light ? 0.1 : 0)}),
+            0 0 ${14 + sensorLevels.gas * 20}px rgba(107, 114, 128, ${0.08 + (sensorPulse.gas ? 0.1 : 0)})
+        `
+    };
+
+    const chartTempHumidityGlowStyle = {
+        transition: 'box-shadow 450ms ease, transform 450ms ease',
+        transform: sensorPulse.temperature || sensorPulse.humidity ? 'translateY(-2px)' : 'translateY(0)',
+        boxShadow: `
+            0 16px 34px rgba(15, 23, 42, 0.06),
+            0 0 ${16 + sensorLevels.temperature * 22}px rgba(249, 115, 22, ${0.08 + (sensorPulse.temperature ? 0.1 : 0)}),
+            0 0 ${16 + sensorLevels.humidity * 22}px rgba(56, 189, 248, ${0.08 + (sensorPulse.humidity ? 0.1 : 0)})
+        `
+    };
+
+    const canControlDevices = connectionState.socketConnected && connectionState.mqttConnected && connectionState.hardwareConnected;
+    const connectionMessage = !connectionState.socketConnected
+        ? 'Mất kết nối Socket tới backend'
+        : (!connectionState.mqttConnected
+            ? 'Mất kết nối MQTT tới backend'
+            : (connectionState.hardwareConnected ? 'Đã kết nối với server' : 'Mất kết nối tới thiết bị'));
     const formattedDevices = (Array.isArray(devices) ? devices : []).map((device) => ({
         ...device,
         displayName: formatDeviceDisplayName(device.name)
     }));
 
 
-    // console.log('🔄 Dashboard rendered with devices:', devices);
 
     return (
         <MainLayout>
-            {/* Socket Connection Status */}
-            <div className="mb-6 flex items-center gap-3 bg-white px-5 py-1 rounded-2xl shadow-md border border-gray-100 w-fit">
-                <div className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                    isConnected() ? 'bg-green-500 shadow-lg shadow-green-200 animate-pulse' : 'bg-red-500 shadow-lg shadow-red-200'
-                }`}></div>
-                <span className={`text-sm font-medium ${
-                    isConnected() ? 'text-green-700' : 'text-red-700'
-                }`}>
-                    {isConnected() ? 'Đã kết nối với server' : 'Mất kết nối'}
-                </span>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left Column - InforCard và ToggleCards */}
-                <div className="space-y-6">
-                    {/* InforCard với realtime data */}
-                    <InforCard 
-                        temperature={formattedSensorData.temperature} 
-                        humidity={formattedSensorData.humidity} 
-                        light={formattedSensorData.light} 
-                        gas={formattedSensorData.gas} 
-                    />
-
-                    {/* Grid 2x2 ToggleCards */}
-                    {loading ? (
-                        <div className="flex flex-col justify-center items-center py-12 bg-white rounded-3xl shadow-lg border border-gray-100">
-                            <div className="relative">
-                                <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-                                <div className="absolute inset-0 w-12 h-12 border-4 border-transparent border-t-blue-400 rounded-full animate-ping opacity-20"></div>
-                            </div>
-                            <p className="mt-4 text-gray-600 font-medium">Loading devices...</p>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-2 gap-4">
-                            {formattedDevices.map((device) => (
-                                <ToggleCard 
-                                    key={device.id}
-                                    deviceName={device.name.charAt(0).toUpperCase() + device.name.slice(1)}
-                                    initialState={getDeviceState(device.value, device.status)}
-                                    isConnected={device.is_connected !== false}
-                                    onToggle={() => handleToggleDevice(device.id, device.value, device.status)}
-                                />
-                            ))}
-                        </div>
-                    )}
+            <div className="relative overflow-hidden rounded-[2rem] p-2">
+                <div className="pointer-events-none absolute inset-0">
+                    <div className="absolute -top-24 -left-20 w-80 h-80 rounded-full transition-all duration-700" style={temperatureAmbientStyle}></div>
+                    <div className="absolute -top-16 right-8 w-72 h-72 rounded-full transition-all duration-700" style={humidityAmbientStyle}></div>
+                    <div className="absolute top-1/3 -right-12 w-96 h-96 rounded-full transition-all duration-700" style={lightAmbientStyle}></div>
+                    <div className="absolute -bottom-24 left-1/4 w-80 h-80 rounded-full transition-all duration-700" style={gasAmbientStyle}></div>
                 </div>
 
-                {/* Right Column - Charts với realtime data */}
-                <div className="lg:col-span-2 space-y-4">
-                    {/* Chart 1 - Ánh sáng & Bụi mịn */}
-                    <Chart 
-                        data1={formattedLightData} 
-                        data2={formattedGasData} 
-                        color1="#fbbf24" 
-                        color2="#9ca3af" 
-                        label1="Ánh sáng" 
-                        label2="Khí gas" 
-                        unit1="%(lux)" 
-                        unit2="%(ppm)" 
-                        min1={0} 
-                        max1={100} 
-                        min2={0} 
-                        max2={100} 
-                        title="Ánh sáng & khí gas" 
-                        subtitle="Light Intensity & Gas Levels" 
-                    />
+                <div className="relative z-10">
+                    {/* Socket Connection Status */}
+                    <div className="mb-6 flex items-center gap-3 bg-white px-5 py-1 rounded-2xl shadow-md border border-gray-100 w-fit">
+                        <div className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                            canControlDevices ? 'bg-green-500 shadow-lg shadow-green-200 animate-pulse' : 'bg-red-500 shadow-lg shadow-red-200'
+                        }`}></div>
+                        <span className={`text-sm font-medium ${
+                            canControlDevices ? 'text-green-700' : 'text-red-700'
+                        }`}>
+                            {connectionMessage}
+                        </span>
+                    </div>
 
-                    {/* Chart 2 - Nhiệt độ & Độ ẩm */}
-                    <Chart 
-                        data1={formattedTemperatureData} 
-                        data2={formattedHumidityData}
-                        color1="#22c55e" 
-                        color2="blue" 
-                        label1="Nhiệt độ"
-                        label2="Độ ẩm"
-                        unit1="°C"
-                        unit2="%"
-                        min1={0}
-                        max1={100}
-                        min2={0}
-                        max2={100}
-                        title="Nhiệt độ & độ ẩm"
-                        subtitle="Temperature & Humidity trends"
-                    />
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Left Column - InforCard và ToggleCards */}
+                        <div className="space-y-6">
+                            {/* InforCard */}
+                            <div className="rounded-3xl" style={infoCardGlowStyle}>
+                                <InforCard 
+                                    temperature={formattedSensorData.temperature} 
+                                    humidity={formattedSensorData.humidity} 
+                                    light={formattedSensorData.light} 
+                                    gas={formattedSensorData.gas} 
+                                />
+                            </div>
+
+                            {loading ? (
+                                <div className="flex flex-col justify-center items-center py-12 bg-white rounded-3xl shadow-lg border border-gray-100">
+                                    <div className="relative">
+                                        <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                                        <div className="absolute inset-0 w-12 h-12 border-4 border-transparent border-t-blue-400 rounded-full animate-ping opacity-20"></div>
+                                    </div>
+                                    <p className="mt-4 text-gray-600 font-medium">Đang tải thiết bị...</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-4">
+                                    {formattedDevices.map((device) => (
+                                        <ToggleCard 
+                                            key={device.id}
+                                            deviceName={device.name.charAt(0).toUpperCase() + device.name.slice(1)}
+                                            initialState={getDeviceState(device.value, device.status)}
+                                            isConnected={canControlDevices && device.is_connected !== false}
+                                            onToggle={() => handleToggleDevice(device.id, device.value, device.status)}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Right Column - Charts với realtime data */}
+                        <div className="lg:col-span-2 space-y-4">
+                            {/* Chart 1 - Ánh sáng & Khí gas */}
+                            <div className="rounded-3xl" style={chartLightGasGlowStyle}>
+                                <Chart 
+                                    data1={formattedLightData} 
+                                    data2={formattedGasData} 
+                                    color1="#fbbf24" 
+                                    color2="#9ca3af" 
+                                    label1="Ánh sáng" 
+                                    label2="Khí gas" 
+                                    unit1="%(lux)" 
+                                    unit2="%(ppm)" 
+                                    min1={0} 
+                                    max1={100} 
+                                    min2={0} 
+                                    max2={100} 
+                                    title="Ánh sáng & khí gas" 
+                                    subtitle="Light Intensity & Gas Levels" 
+                                />
+                            </div>
+
+                            {/* Chart 2 - Nhiệt độ & Độ ẩm */}
+                            <div className="rounded-3xl" style={chartTempHumidityGlowStyle}>
+                                <Chart 
+                                    data1={formattedTemperatureData} 
+                                    data2={formattedHumidityData}
+                                    color1="#22c55e" 
+                                    color2="blue" 
+                                    label1="Nhiệt độ"
+                                    label2="Độ ẩm"
+                                    unit1="°C"
+                                    unit2="%"
+                                    min1={0}
+                                    max1={100}
+                                    min2={0}
+                                    max2={100}
+                                    title="Nhiệt độ & độ ẩm"
+                                    subtitle="Temperature & Humidity trends"
+                                />
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </MainLayout>

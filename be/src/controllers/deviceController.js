@@ -74,8 +74,7 @@ const toggleDevice = async (req, res) => {
             [actionHistoryId, id, command, 'user', 'waiting']
         );
 
-        // Not connected to MQTT or hardware, mark as failed immediately
-        if (!mqttService || !mqttService.isConnected()) {
+        if (!mqttService) {
             await query(
                 `
                     UPDATE devices
@@ -104,13 +103,17 @@ const toggleDevice = async (req, res) => {
                     auto_toggle: 0,
                     command
                 },
-                message: 'Khong the dieu khien thiet bi vi khong ket noi MQTT/hardware'
+                message: 'Khong the dieu khien thiet bi vi dich vu MQTT chua san sang'
             });
         }
 
-        // Send command and wait for hardware confirmation
+        // Send command and wait for hardware confirmation.
+        // If MQTT drops during waiting, retry reconnect up to 10s then retry command once.
         try {
-            await mqttService.sendCommandAndWait(device.name, command, nextValue, 6000);
+            await mqttService.sendCommandAndWaitWithReconnect(device.name, command, nextValue, {
+                confirmationTimeoutMs: 6000,
+                reconnectTimeoutMs: 10000
+            });
 
             await query(
                 `
@@ -170,7 +173,9 @@ const toggleDevice = async (req, res) => {
                     auto_toggle: 0,
                     command
                 },
-                message: error.message || 'Khong the xac nhan trang thai tu hardware'
+                message: error.code === 'MQTT_RECONNECT_TIMEOUT'
+                    ? 'Mat ket noi toi thiet bi. Da thu ket noi lai MQTT trong 10 giay nhung khong thanh cong.'
+                    : (error.message || 'Khong the xac nhan trang thai tu hardware')
             });
         }
     } catch (error) {
