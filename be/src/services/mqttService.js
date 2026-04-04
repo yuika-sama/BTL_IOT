@@ -2,7 +2,6 @@ const mqtt = require('mqtt');
 require('dotenv').config();
 const { randomUUID } = require('crypto');
 const { query } = require('../config/db');
-const { syncAutoDevicesAndApplyControl } = require('./autoControlService');
 
 const SENSOR_TYPE_CONDITIONS = {
     temperature: "(LOWER(name) LIKE '%temp%' OR LOWER(name) LIKE '%nhiet%')",
@@ -16,7 +15,6 @@ class MqttService {
         this.io = io;
         this.latestDeviceStatus = {};
         this.pendingStatusWaiters = new Map();
-        this.latestSensorThresholdState = new Map();
         this.lastHardwareActivityAt = 0;
         this.hardwareHeartbeatTimeoutMs = Number(process.env.HARDWARE_HEARTBEAT_TIMEOUT_MS || 15000);
         const brokerUrl = process.env.MQTT_SERVER || 'mqtt://localhost';
@@ -94,7 +92,7 @@ class MqttService {
 
         const rows = await query(
             `
-                SELECT id, device_id, name, unit, threshold_min, threshold_max
+                SELECT id
                 FROM sensors
                 WHERE ${condition}
                 ORDER BY created_at ASC
@@ -103,21 +101,6 @@ class MqttService {
         );
 
         return rows?.[0] || null;
-    }
-
-    evaluateThresholdState(value, thresholdMin, thresholdMax) {
-        const min = thresholdMin !== null && thresholdMin !== undefined ? Number(thresholdMin) : null;
-        const max = thresholdMax !== null && thresholdMax !== undefined ? Number(thresholdMax) : null;
-
-        if (min !== null && !Number.isNaN(min) && value < min) {
-            return 'low';
-        }
-
-        if (max !== null && !Number.isNaN(max) && value > max) {
-            return 'high';
-        }
-
-        return 'normal';
     }
 
     toMySqlDateTime(input) {
@@ -138,84 +121,13 @@ class MqttService {
         );
     }
 
-    async insertAlert({ sensorId, deviceId = null, title, description, severity = 'warning' }) {
-        await query(
-            `
-                INSERT INTO alerts (id, sensor_id, device_id, title, description, severity, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, NOW())
-            `,
-            [randomUUID(), sensorId, deviceId, title, description, severity]
-        );
-
-        this.io.emit('alert_update', {
-            sensor_id: sensorId,
-            device_id: deviceId,
-            title,
-            description,
-            severity,
-            timestamp: new Date().toISOString()
-        });
-    }
-
-    buildAlertPayload(sensor, value, thresholdState, previousState) {
-        const sensorName = sensor?.name || 'Sensor';
-        const unit = sensor?.unit || '';
-
-        if (thresholdState === 'normal' && previousState && previousState !== 'normal') {
-            return {
-                severity: 'medium',
-                title: `${sensorName} đã trở lại bình thường`,
-                description: `${sensorName} hiện tại = ${value}${unit}. Giá trị đã nằm trong ngưỡng an toàn.`
-            };
-        }
-
-        if (thresholdState === 'high') {
-            return {
-                severity: 'high',
-                title: `${sensorName} vượt ngưỡng trên`,
-                description: `${sensorName} = ${value}${unit}, vượt ngưỡng tối đa ${sensor.threshold_max}${unit}.`
-            };
-        }
-
-        if (thresholdState === 'low') {
-            return {
-                severity: 'low',
-                title: `${sensorName} thấp hơn ngưỡng dưới`,
-                description: `${sensorName} = ${value}${unit}, thấp hơn ngưỡng tối thiểu ${sensor.threshold_min}${unit}.`
-            };
-        }
-
-        return null;
-    }
-
-    async persistSensorAndCreateAlert(reading) {
+    async persistSensorReading(reading) {
         const sensor = await this.getSensorConfigByType(reading.type);
         if (!sensor) {
             return;
         }
 
         await this.insertSensorData(sensor.id, reading.value, reading.timestamp);
-
-        const thresholdState = this.evaluateThresholdState(reading.value, sensor.threshold_min, sensor.threshold_max);
-        const previousState = this.latestSensorThresholdState.get(sensor.id);
-        this.latestSensorThresholdState.set(sensor.id, thresholdState);
-
-        const alertPayload = this.buildAlertPayload(sensor, reading.value, thresholdState, previousState);
-        if (!alertPayload) {
-            return;
-        }
-
-        if (previousState === thresholdState) {
-            return;
-        }
-
-        await this.insertAlert({
-            sensorId: sensor.id,
-            deviceId: sensor.device_id || null,
-            title: alertPayload.title,
-            description: alertPayload.description,
-            severity: alertPayload.severity
-        });
     }
 
     emitSensorUpdate(readings = []) {
@@ -231,7 +143,7 @@ class MqttService {
         }
 
         for (const reading of readings) {
-            await this.persistSensorAndCreateAlert(reading);
+            await this.persistSensorReading(reading);
         }
 
         this.emitSensorUpdate(readings);
@@ -256,15 +168,8 @@ class MqttService {
     init() {
         this.mqttClient.on('connect', () => {
             // Đăng ký các topic mà ESP32 sẽ gửi lên
-            this.mqttClient.subscribe(['sensor/data', 'device/status', 'device/sync'], (err) => {
+            this.mqttClient.subscribe(['sensor/data', 'device/status'], (err) => {
                 if (!err) console.log('📡 [MQTT] Subscribed to all topics');
-            });
-
-            syncAutoDevicesAndApplyControl({
-                mqttService: this,
-                trigger: 'mqtt-connect'
-            }).catch((error) => {
-                console.error('❌ [AUTO] Sync after MQTT connect failed:', error.message);
             });
         });
 
@@ -277,7 +182,7 @@ class MqttService {
             try {
                 const payload = JSON.parse(message.toString());
 
-                if (topic === 'sensor/data' || topic === 'device/status' || topic === 'device/sync') {
+                if (topic === 'sensor/data' || topic === 'device/status') {
                     this.markHardwareActivity();
                 }
                 
@@ -286,14 +191,8 @@ class MqttService {
                         // Payload ví dụ: { sensor: "temperature", value: 25.0 }
                         // hoặc batch: { temperature: 25.0, humidity: 70 }
                         this.handleSensorData(payload)
-                            .then(() => {
-                                return syncAutoDevicesAndApplyControl({
-                                    mqttService: this,
-                                    trigger: 'sensor-data'
-                                });
-                            })
                             .catch((error) => {
-                                console.error('❌ [AUTO] Handle sensor data failed:', error.message);
+                                console.error('❌ [MQTT] Handle sensor data failed:', error.message);
                             });
                         break;
 
@@ -302,16 +201,6 @@ class MqttService {
                         // Payload: { temp_led: "ON", hum_led: "OFF", ... }
                         this.updateDeviceStatus(payload);
                         this.io.emit('device_status_update', payload);
-                        break;
-
-                    case 'device/sync':
-                        console.log(`🔄 [SYNC] Hardware ${payload.clientId} requested sync.`);
-                        syncAutoDevicesAndApplyControl({
-                            mqttService: this,
-                            trigger: 'device-sync'
-                        }).catch((error) => {
-                            console.error('❌ [AUTO] Sync on device/sync failed:', error.message);
-                        });
                         break;
                 }
             } catch (error) {
@@ -347,20 +236,6 @@ class MqttService {
         }
 
         return null;
-    }
-
-    getKnownDeviceState(deviceName = '') {
-        const stateKey = this.getStateKeyByDeviceName(deviceName);
-        if (!stateKey) {
-            return null;
-        }
-
-        const value = this.latestDeviceStatus[stateKey];
-        if (value === undefined || value === null) {
-            return null;
-        }
-
-        return Number(value) === 1 ? 1 : 0;
     }
 
     updateDeviceStatus(payload = {}) {

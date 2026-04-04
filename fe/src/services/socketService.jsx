@@ -98,10 +98,6 @@ class SocketService {
     });
   }
 
-  onAlert(callback) {
-    return this.on('alert_update', callback);
-  }
-
   onDeviceStatus(callback) {
     return this.on('device_status_update', callback);
   }

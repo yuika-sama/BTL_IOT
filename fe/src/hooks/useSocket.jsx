@@ -15,7 +15,6 @@ export const useSocket = (options = {}) => {
   }, [options?.disconnectOnUnmount]);
 
   const onSensorData = useCallback((callback) => socketService.onSensorData(callback), []);
-  const onAlert = useCallback((callback) => socketService.onAlert(callback), []);
   const onDeviceStatus = useCallback((callback) => socketService.onDeviceStatus(callback), []);
   const on = useCallback((eventName, callback) => socketService.on(eventName, callback), []);
   const emit = useCallback((eventName, data) => socketService.emit(eventName, data), []);
@@ -23,7 +22,6 @@ export const useSocket = (options = {}) => {
 
   return {
     onSensorData,
-    onAlert,
     onDeviceStatus,
     on,
     emit,
@@ -38,15 +36,6 @@ export const useSensorData = (callback) => {
     if (typeof callback !== 'function') return undefined;
     return onSensorData(callback);
   }, [callback, onSensorData]);
-};
-
-export const useAlerts = (callback) => {
-  const { onAlert } = useSocket();
-
-  useEffect(() => {
-    if (typeof callback !== 'function') return undefined;
-    return onAlert(callback);
-  }, [callback, onAlert]);
 };
 
 export const useDeviceStatus = (callback) => {

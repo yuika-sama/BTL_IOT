@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const actionHistoryRoutes = require('./routes/actionHistoryRoutes');
 const dataSensorRoutes = require('./routes/dataSensorRoutes');
-const alertRoutes = require('./routes/alertRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const deviceRoutes = require('./routes/deviceRoutes');
 
@@ -20,7 +19,6 @@ app.get('/', (req, res) => {
 
 app.use('/api/action-history', actionHistoryRoutes);
 app.use('/api/data-sensors', dataSensorRoutes);
-app.use('/api/alerts', alertRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/devices', deviceRoutes);
 

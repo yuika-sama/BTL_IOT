@@ -23,9 +23,9 @@ export default function DataSensor(){
     const filterOptions = [
         {type: 'all', displayText: 'Tất cả'},
         {type: 'temperature', displayText: 'Nhiệt kế'},
-        {type: 'humidity', displayText: 'Máy đo độ ẩm'},
+        {type: 'humidity', displayText: 'Máy bơm'},
         {type: 'light', displayText: 'Quang cảm'},
-        {type: 'gas', displayText: 'Chuông báo gas'},
+        {type: 'gas', displayText: 'Khoá gas'},
         {type: 'time', displayText: 'Thời gian'},
     ]
 
@@ -102,9 +102,9 @@ export default function DataSensor(){
     const columns = [
         { key: 'id',header: 'ID', accessor: 'id', cellClassName:'font-medium'},
         { key: 'temperature', header: 'Nhiệt kế', accessor: 'temperature', render: (value) => (<span className="font-medium text-red-500">{formatNumber(value)}℃</span>)},
-        { key: 'humidity', header: 'Máy đo độ ẩm', accessor: 'humidity', render: (value) => (<span className="font-medium text-blue-400">{formatNumber(value)}%</span>)},
+        { key: 'humidity', header: 'Máy bơm', accessor: 'humidity', render: (value) => (<span className="font-medium text-blue-400">{formatNumber(value)}%</span>)},
         { key: 'light', header: 'Quang cảm', accessor: 'light', render: (value) => (<span className="font-medium text-yellow-500">{formatNumber(value)} %(Lux)</span>)},
-        { key: 'gas', header: 'Chuông báo gas', accessor: 'gas', render: (value) => (<span className="font-medium text-gray-400">{formatNumber(value)} %(ppm)</span>)},
+        { key: 'gas', header: 'Khoá gas', accessor: 'gas', render: (value) => (<span className="font-medium text-gray-400">{formatNumber(value)} %(ppm)</span>)},
         { key: 'timestamp', header: 'Thời gian', accessor: 'timestamp', cellClassName:'', render: (value) => (<span className="text-sm text-gray-500">{formatTime(value)}</span>)},
     ]
     return(

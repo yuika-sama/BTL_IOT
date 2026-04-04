@@ -15,7 +15,6 @@ const getDeviceList = async (req, res) => {
                 id,
                 name,
                 status,
-                auto_toggle,
                 value,
                 created_at,
                 1 AS is_connected

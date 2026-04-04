@@ -100,22 +100,7 @@ export default function ActionHistory(){
         }));
     };
 
-    const renderAction = (value, row) => {
-        // Kiểm tra nếu là hành động auto_toggle
-        if (row.auto_toggle) {
-            const isEnable = row.auto_toggle === 'ENABLE_AUTO';
-            return (
-                <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${
-                    isEnable 
-                        ? 'bg-blue-100 text-blue-800' 
-                        : 'bg-gray-200 text-gray-700'
-                }`}>
-                    {isEnable ?  'Bật tự động' : 'Tắt tự động'}
-                </span>
-            );
-        }
-        
-        // Hành động bật/tắt thủ công bình thường
+    const renderAction = (value) => {
         const isOn = value?.toLowerCase() === 'on';
         return (
             <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${

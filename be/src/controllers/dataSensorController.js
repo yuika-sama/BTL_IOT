@@ -29,7 +29,6 @@ const SENSOR_TYPE_CONDITIONS = {
 
 const BASE_AGGREGATE_SQL = `
     SELECT
-        DATE_FORMAT(ds.created_at, '%Y-%m-%d %H:%i:%s') AS time_key,
         MAX(ds.created_at) AS timestamp,
         MAX(CASE WHEN ${SENSOR_TYPE_CONDITIONS.temperature} THEN ds.value END) AS temperature,
         MAX(CASE WHEN ${SENSOR_TYPE_CONDITIONS.humidity} THEN ds.value END) AS humidity,

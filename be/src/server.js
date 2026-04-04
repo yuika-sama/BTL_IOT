@@ -2,7 +2,6 @@ const http = require('http');
 const { Server } = require('socket.io');
 const app = require('./app');
 const MqttService = require('./services/mqttService');
-const { syncAutoDevicesAndApplyControl } = require('./services/autoControlService');
 
 const PORT = 5000;
 const SOCKET_STATUS_EVENT = 'connection_status';
@@ -54,27 +53,6 @@ io.on('connection', (socket) => {
     console.log(`🔌 [Socket.io] New Client Connected: ${socket.id}`);
 
     socket.emit(SOCKET_STATUS_EVENT, buildSocketConnectionStatus());
-
-    syncAutoDevicesAndApplyControl({
-        mqttService,
-        trigger: 'socket-connect'
-    }).catch((error) => {
-        console.error('❌ [AUTO] Sync on socket connection failed:', error.message);
-    });
-
-    // Nhận lệnh điều khiển
-    socket.on('send_command', (command) => {
-        const currentStatus = buildSocketConnectionStatus();
-        if (!currentStatus.success) {
-            socket.emit(SOCKET_STATUS_EVENT, currentStatus);
-            return;
-        }
-
-        console.log(`🖱️ [UI] User clicked: ${command}`);
-        mqttService.publishControl(command).catch((error) => {
-            console.error('❌ [MQTT] Failed to publish socket command:', error.message);
-        });
-    });
 
     socket.on('disconnect', () => {
         console.log(`❌ [Socket.io] Client Disconnected: ${socket.id}`);

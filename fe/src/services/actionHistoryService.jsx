@@ -33,7 +33,6 @@ const buildListParams = (params = {}) => {
 const actionHistoryService = {
   getAll: async (params = {}) => {
 
-    // === Xử lý thay thế các cụm từ trong params.search ===
     let formattedParams = {...params};
     if (formattedParams.filter === 'time' && isValidDateTime(formattedParams.search)) {
       // === Xử lý format search theo thời gian ===
@@ -42,17 +41,6 @@ const actionHistoryService = {
       if (typeof formattedParams.search === 'string') {
         // 1. Định nghĩa từ điển thay thế
         const replacementMap = {
-          // auto bật/tắt
-          "auto_enable": "enable_auto",
-          "auto_disable": "disable_auto",
-          "auto enable": "enable_auto",
-          "auto disable": "disable_auto",
-          "enable auto": "enable_auto",
-          "disable auto": "disable_auto",
-          "bật tự động": "enable_auto",
-          "tắt tự động": "disable_auto",
-          "tự động bật": "enable_auto",
-          "tự động tắt": "disable_auto",
           // trạng thái thiết bị
           "thành công": "success",
           "thất bại": "failed",
@@ -88,32 +76,6 @@ const actionHistoryService = {
         data: response?.data || [],
         pagination: normalizePagination(response?.pagination),
       },
-    };
-  },
-
-  getDailyCount: async (date = null) => {
-    const response = await baseApi.get('/action-history/daily-count', {
-      params: date ? { date } : undefined,
-    });
-
-    return {
-      success: Boolean(response?.success),
-      data: {
-        date: response?.data?.date || null,
-        on_count: Number(response?.data?.on_count || 0),
-        off_count: Number(response?.data?.off_count || 0),
-      },
-    };
-  },
-
-  getCountByDays: async (days = 7) => {
-    const response = await baseApi.get('/action-history/count-by-days', {
-      params: { days },
-    });
-
-    return {
-      success: Boolean(response?.success),
-      data: Array.isArray(response?.data) ? response.data : [],
     };
   },
 };

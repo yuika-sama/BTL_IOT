@@ -72,7 +72,7 @@ export default function Table({ data = [], columns = [], }) {
     const getExecutorInfo = (executor) => {
         if (!executor) return null; // Handle null/undefined
         
-        const isAuto = executor.toLowerCase() === 'auto' || executor.toLowerCase() === 'system' || executor.toLowerCase() === 'bot' || executor.toLowerCase() === 'automation';
+        const isAuto = executor.toLowerCase() === 'auto' || executor.toLowerCase() === 'system' || executor.toLowerCase() === 'bot';
         return (
             <div className='flex items-center gap-2.5 font-medium'>
                 <div className={`p-1.5 rounded-lg ${isAuto ? 'bg-purple-100' : 'bg-blue-100'}`}>
