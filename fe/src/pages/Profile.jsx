@@ -3,10 +3,28 @@ import MainLayout from '../components/MainLayout';
 import ProfileButton from '../components/ProfileButton';
 import { Github, Figma, Globe } from 'lucide-react';
 import profileAvatar from '../assets/profile_avatar.jpg';
+import { normalizeSensorLevel, createBackgroundTheme } from '../utils/themeUtils.js';
 
 export default function Profile() {
+    // Mock sensor data for background overlay
+    const mockSensorData = {
+        temperature: 25,
+        humidity: 72,
+        light: 90,
+        gas: 28
+    };
+
+    const sensorLevels = {
+        temperature: normalizeSensorLevel(mockSensorData.temperature, 0, 50),
+        humidity: normalizeSensorLevel(mockSensorData.humidity, 0, 100),
+        light: normalizeSensorLevel(mockSensorData.light, 0, 100),
+        gas: normalizeSensorLevel(mockSensorData.gas, 0, 100)
+    };
+
+    const backgroundTheme = createBackgroundTheme(sensorLevels);
+
     return (
-        <MainLayout>
+        <MainLayout backgroundTheme={backgroundTheme}>
             <div className="grid grid-cols-1 lg:grid-cols-[40%_60%] gap-8 items-start bg-gradient-to-br from-white to-gray-50 rounded-3xl shadow-2xl border-2 border-gray-100 p-10">
                 {/* Left side - Profile Card */}
                 <div className="flex flex-col items-center">
@@ -44,7 +62,7 @@ export default function Profile() {
                         <ProfileButton 
                             icon={<Globe size={16} />}
                             text="API Docs" 
-                            link="https://api-docs.com" 
+                            link="https://yuika-sama-8508966.postman.co/workspace/Nguyen-Duc-Anh's-Workspace~e3740beb-4d48-469c-803c-d6dab20eb7a7/collection/47588822-bc30ae31-44fb-46a9-a360-50a5eb02207d?action=share&creator=47588822" 
                         />
                     </div>
                 </div>

@@ -3,6 +3,7 @@ import InformationLayout from '../components/InformationLayout.jsx';
 import MainLayout from '../components/MainLayout.jsx';
 import actionHistoryService from '../services/actionHistoryService.jsx';
 import { formatTime } from '../utils/formatter.js';
+import { normalizeSensorLevel, createBackgroundTheme } from '../utils/themeUtils.js';
 
 export default function ActionHistory(){
     const [data, setData] = useState([]);
@@ -19,6 +20,23 @@ export default function ActionHistory(){
         sensorFilter: 'all',
         order: 'desc'
     });
+
+    // Mock sensor data for background overlay
+    const mockSensorData = {
+        temperature: 32,
+        humidity: 58,
+        light: 85,
+        gas: 35
+    };
+
+    const sensorLevels = {
+        temperature: normalizeSensorLevel(mockSensorData.temperature, 0, 50),
+        humidity: normalizeSensorLevel(mockSensorData.humidity, 0, 100),
+        light: normalizeSensorLevel(mockSensorData.light, 0, 100),
+        gas: normalizeSensorLevel(mockSensorData.gas, 0, 100)
+    };
+
+    const backgroundTheme = createBackgroundTheme(sensorLevels);
 
     const filterOptions = [
         {type: 'all', displayText: 'Tất cả'},
@@ -168,7 +186,7 @@ export default function ActionHistory(){
     ]
     
     return(
-        <MainLayout>
+        <MainLayout backgroundTheme={backgroundTheme}>
             <InformationLayout
                 filterOptions={filterOptions}
                 columns={columns}

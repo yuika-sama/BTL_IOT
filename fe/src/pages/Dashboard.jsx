@@ -415,69 +415,6 @@ export default function Dashboard() {
         gas: normalizeSensorLevel(sensorData.gas, 0, 100)
     };
 
-    const isAnySensorPulsing = Object.values(sensorPulse).some(Boolean);
-    const pulseScaleBoost = isAnySensorPulsing ? 1.03 : 1;
-
-    const temperatureAmbientStyle = {
-        background: 'radial-gradient(circle, rgba(249, 115, 22, 0.7) 0%, rgba(249, 115, 22, 0) 72%)',
-        opacity: 0.14 + sensorLevels.temperature * 0.26 + (sensorPulse.temperature ? 0.12 : 0),
-        transform: `scale(${(0.9 + sensorLevels.temperature * 0.45 + (sensorPulse.temperature ? 0.08 : 0)) * pulseScaleBoost})`,
-        filter: `blur(${24 - sensorLevels.temperature * 5}px)`
-    };
-
-    const humidityAmbientStyle = {
-        background: 'radial-gradient(circle, rgba(56, 189, 248, 0.65) 0%, rgba(56, 189, 248, 0) 72%)',
-        opacity: 0.12 + sensorLevels.humidity * 0.25 + (sensorPulse.humidity ? 0.12 : 0),
-        transform: `scale(${(0.9 + sensorLevels.humidity * 0.42 + (sensorPulse.humidity ? 0.08 : 0)) * pulseScaleBoost})`,
-        filter: `blur(${24 - sensorLevels.humidity * 5}px)`
-    };
-
-    const lightAmbientStyle = {
-        background: 'radial-gradient(circle, rgba(250, 204, 21, 0.72) 0%, rgba(250, 204, 21, 0) 72%)',
-        opacity: 0.1 + sensorLevels.light * 0.32 + (sensorPulse.light ? 0.16 : 0),
-        transform: `scale(${(0.88 + sensorLevels.light * 0.5 + (sensorPulse.light ? 0.12 : 0)) * pulseScaleBoost})`,
-        filter: `blur(${22 - sensorLevels.light * 4}px)`
-    };
-
-    const gasAmbientStyle = {
-        background: 'radial-gradient(circle, rgba(107, 114, 128, 0.62) 0%, rgba(107, 114, 128, 0) 72%)',
-        opacity: 0.08 + sensorLevels.gas * 0.22 + (sensorPulse.gas ? 0.12 : 0),
-        transform: `scale(${(0.9 + sensorLevels.gas * 0.38 + (sensorPulse.gas ? 0.08 : 0)) * pulseScaleBoost})`,
-        filter: `blur(${25 - sensorLevels.gas * 4}px)`
-    };
-
-    const infoCardGlowStyle = {
-        transition: 'box-shadow 450ms ease, transform 450ms ease',
-        transform: isAnySensorPulsing ? 'translateY(-2px)' : 'translateY(0)',
-        boxShadow: `
-            0 18px 38px rgba(15, 23, 42, 0.08),
-            0 0 ${18 + sensorLevels.temperature * 24}px rgba(249, 115, 22, ${0.08 + (sensorPulse.temperature ? 0.08 : 0)}),
-            0 0 ${18 + sensorLevels.humidity * 24}px rgba(56, 189, 248, ${0.08 + (sensorPulse.humidity ? 0.08 : 0)}),
-            0 0 ${20 + sensorLevels.light * 26}px rgba(250, 204, 21, ${0.1 + (sensorPulse.light ? 0.12 : 0)}),
-            0 0 ${14 + sensorLevels.gas * 18}px rgba(107, 114, 128, ${0.06 + (sensorPulse.gas ? 0.08 : 0)})
-        `
-    };
-
-    const chartLightGasGlowStyle = {
-        transition: 'box-shadow 450ms ease, transform 450ms ease',
-        transform: sensorPulse.light || sensorPulse.gas ? 'translateY(-2px)' : 'translateY(0)',
-        boxShadow: `
-            0 16px 34px rgba(15, 23, 42, 0.06),
-            0 0 ${16 + sensorLevels.light * 24}px rgba(250, 204, 21, ${0.09 + (sensorPulse.light ? 0.1 : 0)}),
-            0 0 ${14 + sensorLevels.gas * 20}px rgba(107, 114, 128, ${0.08 + (sensorPulse.gas ? 0.1 : 0)})
-        `
-    };
-
-    const chartTempHumidityGlowStyle = {
-        transition: 'box-shadow 450ms ease, transform 450ms ease',
-        transform: sensorPulse.temperature || sensorPulse.humidity ? 'translateY(-2px)' : 'translateY(0)',
-        boxShadow: `
-            0 16px 34px rgba(15, 23, 42, 0.06),
-            0 0 ${16 + sensorLevels.temperature * 22}px rgba(249, 115, 22, ${0.08 + (sensorPulse.temperature ? 0.1 : 0)}),
-            0 0 ${16 + sensorLevels.humidity * 22}px rgba(56, 189, 248, ${0.08 + (sensorPulse.humidity ? 0.1 : 0)})
-        `
-    };
-
     const canControlDevices = connectionState.socketConnected && connectionState.mqttConnected && connectionState.hardwareConnected;
     const connectionMessage = !connectionState.socketConnected
         ? 'Mất kết nối Socket tới backend'

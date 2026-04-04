@@ -33,7 +33,7 @@
                 ""
               ]
             },
-            "description": "Kiem tra server dang chay"
+            "description": "Check if server is running"
           }
         }
       ]
@@ -56,7 +56,8 @@
                 "dashboard",
                 "devices"
               ]
-            }
+            },
+            "description": "Fetch list of devices with current status"
           }
         },
         {
@@ -79,10 +80,11 @@
                 {
                   "key": "limit",
                   "value": "20",
-                  "description": "1..100"
+                  "description": "Number of latest data points (1-100)"
                 }
               ]
-            }
+            },
+            "description": "Fetch initial sensor data for chart initialization"
           }
         },
         {
@@ -101,7 +103,8 @@
                 "sensors",
                 "latest"
               ]
-            }
+            },
+            "description": "Fetch latest sensor values (realtime)"
           }
         }
       ]
@@ -126,122 +129,32 @@
               "query": [
                 {
                   "key": "page",
-                  "value": "1"
+                  "value": "1",
+                  "description": "Page number (starts from 1)"
                 },
                 {
                   "key": "limit",
-                  "value": "10"
+                  "value": "10",
+                  "description": "Records per page"
                 },
                 {
                   "key": "search",
-                  "value": ""
+                  "value": "",
+                  "description": "Search term"
                 },
                 {
                   "key": "filter",
                   "value": "all",
-                  "description": "all|temperature|humidity|light|gas|time"
+                  "description": "all | temperature | humidity | light | gas | time"
                 },
                 {
                   "key": "order",
                   "value": "desc",
-                  "description": "asc|desc"
+                  "description": "asc | desc"
                 }
               ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Alerts",
-      "item": [
-        {
-          "name": "GET Alerts List",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/alerts?page=1&limit=10&search=&filter=all&order=desc",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "alerts"
-              ],
-              "query": [
-                {
-                  "key": "page",
-                  "value": "1"
-                },
-                {
-                  "key": "limit",
-                  "value": "10"
-                },
-                {
-                  "key": "search",
-                  "value": ""
-                },
-                {
-                  "key": "filter",
-                  "value": "all",
-                  "description": "all|name|severity|title|description|time"
-                },
-                {
-                  "key": "order",
-                  "value": "desc",
-                  "description": "asc|desc"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET Alerts Daily Count",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/alerts/daily-count?date=2026-04-04",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "alerts",
-                "daily-count"
-              ],
-              "query": [
-                {
-                  "key": "date",
-                  "value": "2026-04-04"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET Alerts Count By Days",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/alerts/count-by-days?days=7",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "alerts",
-                "count-by-days"
-              ],
-              "query": [
-                {
-                  "key": "days",
-                  "value": "7"
-                }
-              ]
-            }
+            },
+            "description": "Fetch sensor data history with pagination"
           }
         }
       ]
@@ -266,33 +179,37 @@
               "query": [
                 {
                   "key": "page",
-                  "value": "1"
+                  "value": "1",
+                  "description": "Page number (starts from 1)"
                 },
                 {
                   "key": "limit",
-                  "value": "10"
+                  "value": "10",
+                  "description": "Records per page"
                 },
                 {
                   "key": "search",
-                  "value": ""
+                  "value": "",
+                  "description": "Search term"
                 },
                 {
                   "key": "filter",
                   "value": "all",
-                  "description": "all|name|action|status|user|time"
+                  "description": "all | time"
                 },
                 {
                   "key": "sensorFilter",
                   "value": "all",
-                  "description": "all|humidity|gas|light|temperature"
+                  "description": "all | humidity | gas | light | temperature"
                 },
                 {
                   "key": "order",
                   "value": "desc",
-                  "description": "asc|desc"
+                  "description": "asc | desc"
                 }
               ]
-            }
+            },
+            "description": "Fetch action history with pagination and filters"
           }
         },
         {
@@ -313,10 +230,12 @@
               "query": [
                 {
                   "key": "date",
-                  "value": "2026-04-04"
+                  "value": "2026-04-04",
+                  "description": "Date in YYYY-MM-DD format"
                 }
               ]
-            }
+            },
+            "description": "Get action count for a specific date"
           }
         },
         {
@@ -337,10 +256,12 @@
               "query": [
                 {
                   "key": "days",
-                  "value": "7"
+                  "value": "7",
+                  "description": "Number of days to retrieve (default: 7)"
                 }
               ]
-            }
+            },
+            "description": "Get action count for last N days"
           }
         }
       ]
@@ -374,36 +295,7 @@
                 "toggle"
               ]
             },
-            "description": "Bat/tat thu cong thiet bi"
-          }
-        },
-        {
-          "name": "POST Toggle Auto Mode",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/devices/{{deviceId}}/toggle-auto",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "devices",
-                "{{deviceId}}",
-                "toggle-auto"
-              ]
-            },
-            "description": "Bat/tat che do tu dong"
+            "description": "Toggle device ON/OFF state"
           }
         }
       ]

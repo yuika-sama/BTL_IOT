@@ -3,6 +3,7 @@ import MainLayout from '../components/MainLayout.jsx';
 import InformationLayout from '../components/InformationLayout.jsx';
 import dataSensorService from '../services/dataSensorService.jsx';
 import {formatNumber, formatTime} from '../utils/formatter.js';
+import { normalizeSensorLevel, createBackgroundTheme } from '../utils/themeUtils.js';
 
 export default function DataSensor(){
     const [data, setData] = useState([]);
@@ -19,6 +20,23 @@ export default function DataSensor(){
         filter: 'all',
         order: 'desc'
     });
+
+    // Mock sensor data for background overlay
+    const mockSensorData = {
+        temperature: 28,
+        humidity: 65,
+        light: 78,
+        gas: 42
+    };
+
+    const sensorLevels = {
+        temperature: normalizeSensorLevel(mockSensorData.temperature, 0, 50),
+        humidity: normalizeSensorLevel(mockSensorData.humidity, 0, 100),
+        light: normalizeSensorLevel(mockSensorData.light, 0, 100),
+        gas: normalizeSensorLevel(mockSensorData.gas, 0, 100)
+    };
+
+    const backgroundTheme = createBackgroundTheme(sensorLevels);
 
     const filterOptions = [
         {type: 'all', displayText: 'Tất cả'},
@@ -108,7 +126,7 @@ export default function DataSensor(){
         { key: 'timestamp', header: 'Thời gian', accessor: 'timestamp', cellClassName:'', render: (value) => (<span className="text-sm text-gray-500">{formatTime(value)}</span>)},
     ]
     return(
-        <MainLayout>
+        <MainLayout backgroundTheme={backgroundTheme}>
             <InformationLayout
                 filterOptions={filterOptions}
                 columns={columns}
