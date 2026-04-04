@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function Background() {
+export default function Background({ theme = {} }) {
   const [particles] = useState(() => [
     ...[...Array(15)].map(() => ({
       size: Math.random() * 6 + 4,
@@ -13,9 +13,16 @@ export default function Background() {
     }))
   ]);
 
+  const overlayStops = Array.isArray(theme.gradientStops) && theme.gradientStops.length === 4
+    ? theme.gradientStops
+    : ['rgba(239,246,255,0.12)', 'rgba(219,234,254,0.12)', 'rgba(224,231,255,0.12)', 'rgba(254,243,199,0.12)'];
+
+  const overlayOrbs = theme.orbColors || {};
+  const energy = Math.min(1, Math.max(0, Number(theme.energy || 0)));
+
   return (
     <div className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
-      {/* Animated Gradient Background */}
+      {/* Base Background (kept original) */}
       <div 
         className="absolute inset-0 w-full h-full animate-gradient"
         style={{
@@ -25,7 +32,7 @@ export default function Background() {
         }}
       />
       
-      {/* Animated blur orbs */}
+      {/* Base blur orbs (kept original) */}
       <div 
         className="absolute rounded-full animate-float-slow"
         style={{
@@ -52,7 +59,7 @@ export default function Background() {
         }}
       />
       
-      {/* Additional floating orb */}
+      {/* Base additional orb (kept original) */}
       <div 
         className="absolute rounded-full"
         style={{
@@ -67,7 +74,7 @@ export default function Background() {
         }}
       />
       
-      {/* Floating particles */}
+      {/* Base floating particles (kept original) */}
       <div className="absolute inset-0 overflow-hidden">
         {particles.map((particle, i) => (
           <div
@@ -77,9 +84,9 @@ export default function Background() {
               width: `${particle.size}px`,
               height: `${particle.size}px`,
               background: particle.colorType === 0 
-                ? 'rgba(96, 165, 250, 0.4)' 
+                ? 'rgba(96, 165, 250, 0.4)'
                 : particle.colorType === 1 
-                ? 'rgba(129, 140, 248, 0.4)' 
+                ? 'rgba(129, 140, 248, 0.4)'
                 : 'rgba(167, 139, 250, 0.4)',
               left: `${particle.left}%`,
               top: `${particle.top}%`,
@@ -91,7 +98,7 @@ export default function Background() {
         ))}
       </div>
       
-      {/* Geometric shapes */}
+      {/* Base geometric shapes (kept original) */}
       <div className="absolute inset-0 overflow-hidden opacity-20">
         <div 
           className="absolute w-32 h-32 border-2 border-blue-400 rounded-lg"
@@ -115,6 +122,57 @@ export default function Background() {
             left: '70%',
             bottom: '30%',
             animation: 'rotate-slow 20s linear infinite'
+          }}
+        />
+      </div>
+
+      {/* Dynamic Overlay (new layer on top of base background) */}
+      <div className="absolute inset-0" style={{ opacity: 0.28 + energy * 0.35 }}>
+        <div
+          className="absolute inset-0"
+          style={{
+            background: `linear-gradient(145deg, ${overlayStops[0]} 0%, ${overlayStops[1]} 35%, ${overlayStops[2]} 68%, ${overlayStops[3]} 100%)`,
+            backgroundSize: '180% 180%',
+            animation: `gradient-shift ${12 - energy * 4}s ease infinite`
+          }}
+        />
+
+        <div
+          className="absolute rounded-full"
+          style={{
+            width: '320px',
+            height: '320px',
+            background: overlayOrbs.temperature || 'rgba(249, 115, 22, 0.2)',
+            filter: 'blur(55px)',
+            left: '-110px',
+            top: '-90px',
+            animation: `float-1 ${17 - energy * 4}s ease-in-out infinite`
+          }}
+        />
+
+        <div
+          className="absolute rounded-full"
+          style={{
+            width: '360px',
+            height: '360px',
+            background: overlayOrbs.humidity || 'rgba(56, 189, 248, 0.18)',
+            filter: 'blur(60px)',
+            right: '-120px',
+            bottom: '-80px',
+            animation: `float-2 ${20 - energy * 4}s ease-in-out infinite`
+          }}
+        />
+
+        <div
+          className="absolute rounded-full"
+          style={{
+            width: '260px',
+            height: '260px',
+            background: overlayOrbs.light || 'rgba(250, 204, 21, 0.18)',
+            filter: 'blur(45px)',
+            left: '42%',
+            top: '30%',
+            animation: `float-3 ${15 - energy * 3}s ease-in-out infinite`
           }}
         />
       </div>

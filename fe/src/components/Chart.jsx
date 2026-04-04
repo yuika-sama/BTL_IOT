@@ -17,7 +17,9 @@ export default function Chart({
     min2 = 0,
     max2 = 100,
     title = 'Ánh sáng & bụi mịn',
-    subtitle = 'Light Intensity & Dust trends'
+    subtitle = 'Light Intensity & Dust trends',
+    containerClassName = '',
+    containerStyle = {}
 }) {
     // Validate và ensure data is array
     const validData1 = Array.isArray(data1) ? data1 : [];
@@ -57,7 +59,10 @@ export default function Chart({
     // Show message if no data
     if (mergedData.length === 0) {
         return (
-            <div className="bg-white rounded-3xl p-6 shadow-lg">
+            <div
+                className={`bg-white rounded-3xl p-6 shadow-lg transition-all duration-500 ${containerClassName}`}
+                style={containerStyle}
+            >
                 <div className="mb-6">
                     <h3 className="text-xl font-bold text-gray-900">{title}</h3>
                     <p className="text-sm text-gray-500">{subtitle}</p>
@@ -71,7 +76,10 @@ export default function Chart({
     }
 
     return (
-        <div className="bg-white rounded-3xl p-6 shadow-lg">
+        <div
+            className={`bg-white rounded-3xl p-6 shadow-lg transition-all duration-500 ${containerClassName}`}
+            style={containerStyle}
+        >
             {/* Header */}
             <div className="mb-6">
                 <h3 className="text-xl font-bold text-gray-900">{title}</h3>

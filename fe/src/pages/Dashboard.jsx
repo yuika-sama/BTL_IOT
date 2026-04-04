@@ -7,6 +7,62 @@ import { useSocket } from '../hooks/useSocket.jsx';
 import { deviceService, dataSensorService } from '../services';
 import { formatName, formatNumber } from '../utils/formatter.js';
 
+const SENSOR_THEME = {
+    temperature: { hex: '#f97316', glow: 'rgba(249, 115, 22, 0.42)' },
+    humidity: { hex: '#38bdf8', glow: 'rgba(56, 189, 248, 0.42)' },
+    light: { hex: '#facc15', glow: 'rgba(250, 204, 21, 0.45)' },
+    gas: { hex: '#64748b', glow: 'rgba(100, 116, 139, 0.4)' }
+};
+
+const hexToRgb = (hexColor) => {
+    const normalized = String(hexColor || '').replace('#', '');
+    const safeHex = normalized.length === 3
+        ? normalized.split('').map((char) => `${char}${char}`).join('')
+        : normalized.padEnd(6, '0').slice(0, 6);
+
+    const intValue = Number.parseInt(safeHex, 16);
+    return {
+        r: (intValue >> 16) & 255,
+        g: (intValue >> 8) & 255,
+        b: intValue & 255
+    };
+};
+
+const toRgba = (hexColor, alpha = 1) => {
+    const { r, g, b } = hexToRgb(hexColor);
+    const safeAlpha = Math.min(1, Math.max(0, alpha));
+    return `rgba(${r}, ${g}, ${b}, ${safeAlpha})`;
+};
+
+const mixThemeColor = (sensorLevels = {}) => {
+    const keys = ['temperature', 'humidity', 'light', 'gas'];
+    const base = { r: 246, g: 248, b: 254 };
+
+    const totals = keys.reduce((acc, key) => {
+        const level = Number(sensorLevels[key] || 0);
+        const { r, g, b } = hexToRgb(SENSOR_THEME[key].hex);
+
+        acc.weight += level;
+        acc.r += r * level;
+        acc.g += g * level;
+        acc.b += b * level;
+        return acc;
+    }, { r: 0, g: 0, b: 0, weight: 0 });
+
+    if (totals.weight <= 0.001) {
+        return `rgb(${base.r}, ${base.g}, ${base.b})`;
+    }
+
+    const intensity = Math.min(0.72, totals.weight / keys.length);
+    const mixed = {
+        r: Math.round(base.r * (1 - intensity) + (totals.r / totals.weight) * intensity),
+        g: Math.round(base.g * (1 - intensity) + (totals.g / totals.weight) * intensity),
+        b: Math.round(base.b * (1 - intensity) + (totals.b / totals.weight) * intensity)
+    };
+
+    return `rgb(${mixed.r}, ${mixed.g}, ${mixed.b})`;
+};
+
 export default function Dashboard() {
     // State cho sensor data realtime
     const [sensorData, setSensorData] = useState({
@@ -265,7 +321,7 @@ export default function Dashboard() {
     };
 
     // Handle toggle device
-    const handleToggleDevice = async (deviceId, currentValue, currentStatus) => {
+    const handleToggleDevice = async (deviceId, currentValue) => {
         const canControlDevices = connectionState.socketConnected && connectionState.mqttConnected && connectionState.hardwareConnected;
         if (!canControlDevices) {
             window.alert('Mất kết nối tới thiết bị. Vui lòng thử lại sau.');
@@ -329,11 +385,6 @@ export default function Dashboard() {
             'dev_dust_led': 'Bụi mịn',
         };
         return names[deviceName] || deviceName;
-    };
-
-    const formatDeviceDisplayName = (deviceName) => {
-        const displayName = getDeviceDisplayName(deviceName || '');
-        return formatName(String(displayName || 'Thiết bị'));
     };
 
     const normalizeChartSeries = (series = []) => {
@@ -433,22 +484,80 @@ export default function Dashboard() {
         : (!connectionState.mqttConnected
             ? 'Mất kết nối MQTT tới backend'
             : (connectionState.hardwareConnected ? 'Đã kết nối với server' : 'Mất kết nối tới thiết bị'));
-    const formattedDevices = (Array.isArray(devices) ? devices : []).map((device) => ({
-        ...device,
-        displayName: formatDeviceDisplayName(device.name)
-    }));
+    const formattedDevices = (Array.isArray(devices) ? devices : []).map((device) => {
+        const normalizedName = String(device.name || '').toLowerCase();
+        let sensorKey = 'gas';
+        if (normalizedName.includes('temp')) sensorKey = 'temperature';
+        else if (normalizedName.includes('hum')) sensorKey = 'humidity';
+        else if (normalizedName.includes('ldr') || normalizedName.includes('light')) sensorKey = 'light';
+
+        return {
+            ...device,
+            sensorKey,
+            displayName: formatName(String(getDeviceDisplayName(device.name || 'Thiết bị')))
+        };
+    });
+
+    const dominantSensorKey = Object.entries(sensorLevels)
+        .sort((a, b) => Number(b[1]) - Number(a[1]))?.[0]?.[0] || 'temperature';
+    const pageThemeColor = mixThemeColor(sensorLevels);
+    const pageEnergy = Math.min(1, (sensorLevels.temperature + sensorLevels.humidity + sensorLevels.light + sensorLevels.gas) / 3);
+
+    const backgroundTheme = {
+        energy: pageEnergy,
+        dominantKey: dominantSensorKey,
+        gradientStops: [
+            toRgba(pageThemeColor, 1),
+            toRgba(SENSOR_THEME.humidity.hex, 0.22 + sensorLevels.humidity * 0.25),
+            toRgba(SENSOR_THEME.light.hex, 0.2 + sensorLevels.light * 0.28),
+            toRgba(SENSOR_THEME.temperature.hex, 0.18 + sensorLevels.temperature * 0.26)
+        ],
+        orbColors: {
+            temperature: toRgba(SENSOR_THEME.temperature.hex, 0.12 + sensorLevels.temperature * 0.28),
+            humidity: toRgba(SENSOR_THEME.humidity.hex, 0.12 + sensorLevels.humidity * 0.28),
+            light: toRgba(SENSOR_THEME.light.hex, 0.12 + sensorLevels.light * 0.3),
+            gas: toRgba(SENSOR_THEME.gas.hex, 0.1 + sensorLevels.gas * 0.28)
+        }
+    };
+
+    const lightChartColor = toRgba(SENSOR_THEME.light.hex, 0.68 + sensorLevels.light * 0.32);
+    const gasChartColor = toRgba(SENSOR_THEME.gas.hex, 0.62 + sensorLevels.gas * 0.3);
+    const tempChartColor = toRgba(SENSOR_THEME.temperature.hex, 0.7 + sensorLevels.temperature * 0.3);
+    const humChartColor = toRgba(SENSOR_THEME.humidity.hex, 0.68 + sensorLevels.humidity * 0.32);
+
+    const chartStyleLightGas = {
+        border: `1px solid ${toRgba(SENSOR_THEME.light.hex, 0.16 + sensorLevels.light * 0.24)}`,
+        background: `linear-gradient(150deg, rgba(255,255,255,0.96), ${toRgba(SENSOR_THEME.light.hex, 0.06 + sensorLevels.light * 0.12)})`,
+        boxShadow: `
+            0 12px 28px rgba(15,23,42,0.08),
+            0 0 ${14 + sensorLevels.light * 18}px ${toRgba(SENSOR_THEME.light.hex, 0.12 + (sensorPulse.light ? 0.12 : 0))},
+            0 0 ${12 + sensorLevels.gas * 16}px ${toRgba(SENSOR_THEME.gas.hex, 0.1 + (sensorPulse.gas ? 0.1 : 0))}
+        `,
+        transform: sensorPulse.light || sensorPulse.gas ? 'translateY(-2px)' : 'translateY(0)'
+    };
+
+    const chartStyleTempHum = {
+        border: `1px solid ${toRgba(SENSOR_THEME.temperature.hex, 0.16 + sensorLevels.temperature * 0.24)}`,
+        background: `linear-gradient(150deg, rgba(255,255,255,0.96), ${toRgba(SENSOR_THEME.humidity.hex, 0.06 + sensorLevels.humidity * 0.12)})`,
+        boxShadow: `
+            0 12px 28px rgba(15,23,42,0.08),
+            0 0 ${14 + sensorLevels.temperature * 18}px ${toRgba(SENSOR_THEME.temperature.hex, 0.12 + (sensorPulse.temperature ? 0.12 : 0))},
+            0 0 ${14 + sensorLevels.humidity * 18}px ${toRgba(SENSOR_THEME.humidity.hex, 0.12 + (sensorPulse.humidity ? 0.12 : 0))}
+        `,
+        transform: sensorPulse.temperature || sensorPulse.humidity ? 'translateY(-2px)' : 'translateY(0)'
+    };
 
 
 
     return (
-        <MainLayout>
+        <MainLayout backgroundTheme={backgroundTheme}>
             <div className="relative overflow-hidden rounded-[2rem] p-2">
-                <div className="pointer-events-none absolute inset-0">
+                {/* <div className="pointer-events-none absolute inset-0">
                     <div className="absolute -top-24 -left-20 w-80 h-80 rounded-full transition-all duration-700" style={temperatureAmbientStyle}></div>
                     <div className="absolute -top-16 right-8 w-72 h-72 rounded-full transition-all duration-700" style={humidityAmbientStyle}></div>
                     <div className="absolute top-1/3 -right-12 w-96 h-96 rounded-full transition-all duration-700" style={lightAmbientStyle}></div>
                     <div className="absolute -bottom-24 left-1/4 w-80 h-80 rounded-full transition-all duration-700" style={gasAmbientStyle}></div>
-                </div>
+                </div> */}
 
                 <div className="relative z-10">
                     {/* Socket Connection Status */}
@@ -467,12 +576,12 @@ export default function Dashboard() {
                         {/* Left Column - InforCard và ToggleCards */}
                         <div className="space-y-6">
                             {/* InforCard */}
-                            <div className="rounded-3xl" style={infoCardGlowStyle}>
+                            <div className="rounded-3xl">
                                 <InforCard 
                                     temperature={formattedSensorData.temperature} 
                                     humidity={formattedSensorData.humidity} 
                                     light={formattedSensorData.light} 
-                                    gas={formattedSensorData.gas} 
+                                    gas={formattedSensorData.gas}
                                 />
                             </div>
 
@@ -486,15 +595,17 @@ export default function Dashboard() {
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-2 gap-4">
-                                    {formattedDevices.map((device) => (
+                                    {formattedDevices.map((device) => {
+                                        return (
                                         <ToggleCard 
                                             key={device.id}
                                             deviceName={device.name.charAt(0).toUpperCase() + device.name.slice(1)}
                                             initialState={getDeviceState(device.value, device.status)}
                                             isConnected={canControlDevices && device.is_connected !== false}
-                                            onToggle={() => handleToggleDevice(device.id, device.value, device.status)}
+                                            onToggle={() => handleToggleDevice(device.id, device.value)}
                                         />
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>
@@ -502,12 +613,12 @@ export default function Dashboard() {
                         {/* Right Column - Charts với realtime data */}
                         <div className="lg:col-span-2 space-y-4">
                             {/* Chart 1 - Ánh sáng & Khí gas */}
-                            <div className="rounded-3xl" style={chartLightGasGlowStyle}>
+                            <div className="rounded-3xl">
                                 <Chart 
                                     data1={formattedLightData} 
                                     data2={formattedGasData} 
-                                    color1="#fbbf24" 
-                                    color2="#9ca3af" 
+                                    color1={lightChartColor}
+                                    color2={gasChartColor}
                                     label1="Ánh sáng" 
                                     label2="Khí gas" 
                                     unit1="%(lux)" 
@@ -518,16 +629,17 @@ export default function Dashboard() {
                                     max2={100} 
                                     title="Ánh sáng & khí gas" 
                                     subtitle="Light Intensity & Gas Levels" 
+                                    containerStyle={chartStyleLightGas}
                                 />
                             </div>
 
                             {/* Chart 2 - Nhiệt độ & Độ ẩm */}
-                            <div className="rounded-3xl" style={chartTempHumidityGlowStyle}>
+                            <div className="rounded-3xl">
                                 <Chart 
                                     data1={formattedTemperatureData} 
                                     data2={formattedHumidityData}
-                                    color1="#22c55e" 
-                                    color2="blue" 
+                                    color1={tempChartColor}
+                                    color2={humChartColor}
                                     label1="Nhiệt độ"
                                     label2="Độ ẩm"
                                     unit1="°C"
@@ -538,6 +650,7 @@ export default function Dashboard() {
                                     max2={100}
                                     title="Nhiệt độ & độ ẩm"
                                     subtitle="Temperature & Humidity trends"
+                                    containerStyle={chartStyleTempHum}
                                 />
                             </div>
                         </div>

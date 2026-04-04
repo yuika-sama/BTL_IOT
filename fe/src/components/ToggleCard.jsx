@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Lightbulb, Loader2, WifiOff } from 'lucide-react';
+import { Lightbulb, Loader2 } from 'lucide-react';
 
 export default function ToggleCard({ 
     deviceName = "Thiết bị 1", 
@@ -95,9 +95,6 @@ export default function ToggleCard({
                 <div className="flex flex-col gap-3">
                     <div className="flex items-center gap-2">
                         <span className={`text-gray-700 font-medium text-sm ${getTextToggleStyle()}`}>{deviceName}</span>
-                        {/* {(!isConnected || state === "disconnected") && (
-                            <WifiOff size={16} className="text-red-500" />
-                        )} */}
                     </div>
                     
                     {/* Toggle switch or loading */}
