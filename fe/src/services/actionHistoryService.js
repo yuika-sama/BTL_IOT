@@ -13,7 +13,17 @@ const actionHistoryService = {
       formattedParams.search = normalizeActionHistorySearch(formattedParams.search);
     }
 
-    const queryParams = buildQueryParams(formattedParams, ['page', 'limit', 'search', 'filter', 'sensorFilter', 'order']);
+    const queryParams = buildQueryParams(formattedParams, [
+      'page',
+      'limit',
+      'search',
+      'filter',
+      'sensorFilter',
+      'actionFilter',
+      'statusFilter',
+      'executorFilter',
+      'order'
+    ]);
 
 
     const response = await baseApi.get('/action-history', {

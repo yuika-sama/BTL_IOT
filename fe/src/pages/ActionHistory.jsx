@@ -4,7 +4,12 @@ import MainLayout from '../components/MainLayout.jsx';
 import actionHistoryService from '../services/actionHistoryService.js';
 import { formatTime } from '../utils/formatter.js';
 import { normalizeSensorLevel, createBackgroundTheme } from '../utils/themeUtils.js';
-import { ACTION_HISTORY_FILTER_OPTIONS } from '../utils/mappings.js';
+import {
+    ACTION_HISTORY_FILTER_OPTIONS,
+    ACTION_HISTORY_ACTION_OPTIONS,
+    ACTION_HISTORY_STATUS_OPTIONS,
+    ACTION_HISTORY_EXECUTOR_OPTIONS
+} from '../utils/mappings.js';
 
 export default function ActionHistory(){
     const [data, setData] = useState([]);
@@ -19,6 +24,9 @@ export default function ActionHistory(){
     const [filters, setFilters] = useState({
         search: '',
         sensorFilter: 'all',
+        actionFilter: 'all',
+        statusFilter: 'all',
+        executorFilter: 'all',
         order: 'desc'
     });
 
@@ -55,6 +63,9 @@ export default function ActionHistory(){
                 search: filters.search,
                 filter: 'time',
                 sensorFilter: filters.sensorFilter,
+                actionFilter: filters.actionFilter,
+                statusFilter: filters.statusFilter,
+                executorFilter: filters.executorFilter,
                 order: filters.order
             };
 
@@ -110,6 +121,54 @@ export default function ActionHistory(){
             order: sortOrder
         }));
     };
+
+    const handleActionFilterChange = (actionFilter) => {
+        setFilters(prev => ({
+            ...prev,
+            actionFilter
+        }));
+        setPagination(prev => ({ ...prev, page: 1 }));
+    };
+
+    const handleStatusFilterChange = (statusFilter) => {
+        setFilters(prev => ({
+            ...prev,
+            statusFilter
+        }));
+        setPagination(prev => ({ ...prev, page: 1 }));
+    };
+
+    const handleExecutorFilterChange = (executorFilter) => {
+        setFilters(prev => ({
+            ...prev,
+            executorFilter
+        }));
+        setPagination(prev => ({ ...prev, page: 1 }));
+    };
+
+    const extraFilterConfigs = [
+        {
+            key: 'actionFilter',
+            label: 'Hành động',
+            value: filters.actionFilter,
+            options: ACTION_HISTORY_ACTION_OPTIONS,
+            onChange: handleActionFilterChange
+        },
+        {
+            key: 'statusFilter',
+            label: 'Trạng thái',
+            value: filters.statusFilter,
+            options: ACTION_HISTORY_STATUS_OPTIONS,
+            onChange: handleStatusFilterChange
+        },
+        {
+            key: 'executorFilter',
+            label: 'Người thực hiện',
+            value: filters.executorFilter,
+            options: ACTION_HISTORY_EXECUTOR_OPTIONS,
+            onChange: handleExecutorFilterChange
+        }
+    ];
 
     const renderAction = (value) => {
         const isOn = value?.toLowerCase() === 'on';
@@ -182,12 +241,13 @@ export default function ActionHistory(){
         <MainLayout backgroundTheme={backgroundTheme}>
             <InformationLayout
                 filterOptions={ACTION_HISTORY_FILTER_OPTIONS}
+                extraFilterConfigs={extraFilterConfigs}
                 columns={columns}
                 data={data}
                 loading={loading}
                 error={error}
                 pagination={pagination}
-                searchPlaceholder="Tìm theo thời gian"
+                searchPlaceholder="Tìm kiếm theo thời gian..."
                 searchOnType={true}
                 forceSearchFilter="time"
                 sortLabel="Sắp xếp"

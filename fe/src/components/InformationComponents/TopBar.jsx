@@ -3,6 +3,7 @@ import { Search, ChevronDown } from 'lucide-react';
 
 export default function TopBar({
     filterOptions = [],
+    extraFilterConfigs = [],
     onSearch,
     onFilterChange,
     onSort,
@@ -67,10 +68,12 @@ export default function TopBar({
         { value: 'desc', label: 'Giảm dần' }
     ];
 
+    const isMainFilterVisible = filterOptions.length > 0;
+
     return (
-        <div className="flex items-center gap-4 p-4">
+        <div className="flex flex-wrap items-center gap-4 p-4">
             {/* Search Bar and Filter */}
-            <div className="flex-1 flex items-center gap-2">
+            <div className="flex-1 min-w-[300px] flex items-center gap-2">
                 <div className="relative flex-1">
                     <input
                         type="text"
@@ -90,38 +93,70 @@ export default function TopBar({
                 </div>
 
                 {/* Filter Dropdown */}
-                <div className="relative">
-                    <button
-                        onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                        className="group flex items-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-3xl hover:bg-blue-50 transition-colors min-w-[140px] shadow-lg"
-                    >
-                        <span className="text-gray-700 group-hover:text-blue-700">
-                            {filterOptions.find(opt => opt.type === selectedFilter)?.displayText || 'Tất cả'}
-                        </span>
-                        <ChevronDown size={16} className={`text-gray-500 group-hover:text-blue-600 transition-transform ${showFilterDropdown ? 'rotate-180' : ''}`} />
-                    </button>
-                    
-                    {showFilterDropdown && (
-                        <div className="absolute top-full mt-2 right-0 bg-white border-2 border-gray-100 rounded-2xl shadow-xl py-2 min-w-[140px] z-10 backdrop-blur-sm">
-                            {filterOptions.map((option) => (
-                                <button
-                                    key={option.type}
-                                    onClick={() => {
-                                        setSelectedFilter(option.type);
-                                        setShowFilterDropdown(false);
-                                        if (onFilterChange) {
-                                            onFilterChange(option.type);
-                                        }
-                                    }}
-                                    className="w-full text-left px-4 py-2.5 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 hover:text-blue-700 transition-all duration-150 font-medium text-gray-700 first:rounded-t-xl last:rounded-b-xl"
-                                >
-                                    {option.displayText}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                </div>
+                {isMainFilterVisible && (
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+                            className="group flex items-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-3xl hover:bg-blue-50 transition-colors min-w-[140px] shadow-lg"
+                        >
+                            <span className="text-gray-700 group-hover:text-blue-700">
+                                {filterOptions.find(opt => opt.type === selectedFilter)?.displayText || 'Tất cả'}
+                            </span>
+                            <ChevronDown size={16} className={`text-gray-500 group-hover:text-blue-600 transition-transform ${showFilterDropdown ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        {showFilterDropdown && (
+                            <div className="absolute top-full mt-2 right-0 bg-white border-2 border-gray-100 rounded-2xl shadow-xl py-2 min-w-[140px] z-20 backdrop-blur-sm">
+                                {filterOptions.map((option) => (
+                                    <button
+                                        key={option.type}
+                                        onClick={() => {
+                                            setSelectedFilter(option.type);
+                                            setShowFilterDropdown(false);
+                                            if (onFilterChange) {
+                                                onFilterChange(option.type);
+                                            }
+                                        }}
+                                        className="w-full text-left px-4 py-2.5 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 hover:text-blue-700 transition-all duration-150 font-medium text-gray-700 first:rounded-t-xl last:rounded-b-xl"
+                                    >
+                                        {option.displayText}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
+
+            {/* Extra Filters */}
+            {extraFilterConfigs.map((config) => {
+                const selectedOption = config.options?.find((opt) => opt.value === config.value);
+
+                return (
+                    <div className="relative" key={config.key}>
+                        <select
+                            value={config.value}
+                            onChange={(event) => config.onChange?.(event.target.value)}
+                            className="appearance-none px-4 py-3 pr-9 bg-white border border-gray-200 rounded-3xl hover:bg-blue-50 transition-colors min-w-[160px] shadow-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            {config.options?.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                        <ChevronDown
+                            size={16}
+                            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                        />
+                        {/* {selectedOption?.label && (
+                            <span className="absolute -top-2 left-4 px-2 text-xs bg-white text-gray-500">
+                                {config.label}
+                            </span>
+                        )} */}
+                    </div>
+                );
+            })}
 
             {/* Sort Dropdown */}
             <div className="relative">

@@ -1,7 +1,7 @@
 const { query } = require('../config/db');
-const { getNormalizedSortOrder, getActionHistorySearchFilter, ACTION_HISTORY_SEARCH_MAP } = require('../utils/sqlMappings');
+const { getNormalizedSortOrder, ACTION_HISTORY_SEARCH_MAP } = require('../utils/sqlMappings');
 const { parseTimeSearchKeyword, buildTimeCondition } = require('../utils/timeParser');
-const { getAllSensorTypes, getSensorConfig } = require('../utils/sensorConfig');
+const { getSensorConfig } = require('../utils/sensorConfig');
 
 /**
  * Build sensor filter condition for action history
@@ -37,10 +37,86 @@ const buildSensorFilterCondition = (sensorFilter = 'all') => {
 };
 
 /**
+ * Build action filter condition for ON/OFF command groups
+ * @param {string} actionFilter - all | on | off
+ * @returns {object|null} SQL condition object or null
+ */
+const buildActionFilterCondition = (actionFilter = 'all') => {
+    const key = String(actionFilter || 'all').trim().toLowerCase();
+
+    if (key === 'on') {
+        return {
+            sql: `(UPPER(ah.command) LIKE '%_ON' OR UPPER(ah.command) IN ('ON', 'TURN_ON'))`,
+            params: []
+        };
+    }
+
+    if (key === 'off') {
+        return {
+            sql: `(UPPER(ah.command) LIKE '%_OFF' OR UPPER(ah.command) IN ('OFF', 'TURN_OFF'))`,
+            params: []
+        };
+    }
+
+    return null;
+};
+
+/**
+ * Build status filter condition
+ * @param {string} statusFilter - status key
+ * @returns {object|null} SQL condition object or null
+ */
+const buildStatusFilterCondition = (statusFilter = 'all') => {
+    const key = String(statusFilter || 'all').trim().toLowerCase();
+    const allowed = new Set(['success', 'error', 'pending', 'waiting']);
+
+    if (!allowed.has(key)) {
+        return null;
+    }
+
+    return {
+        sql: 'LOWER(ah.status) = ?',
+        params: [key]
+    };
+};
+
+/**
+ * Build executor filter condition
+ * @param {string} executorFilter - all | auto | manual
+ * @returns {object|null} SQL condition object or null
+ */
+const buildExecutorFilterCondition = (executorFilter = 'all') => {
+    const key = String(executorFilter || 'all').trim().toLowerCase();
+
+    if (key === 'auto') {
+        return {
+            sql: `(LOWER(ah.executor) IN ('auto', 'system', 'bot'))`,
+            params: []
+        };
+    }
+
+    if (key === 'manual') {
+        return {
+            sql: `(LOWER(ah.executor) NOT IN ('auto', 'system', 'bot') OR ah.executor IS NULL OR ah.executor = '')`,
+            params: []
+        };
+    }
+
+    return null;
+};
+
+/**
  * Build WHERE clause for action history queries
  * Handles search, filter, and sensor filtering
  */
-const buildWhereClause = ({ search = '', filter = 'all', sensorFilter = 'all' } = {}) => {
+const buildWhereClause = ({
+    search = '',
+    filter = 'all',
+    sensorFilter = 'all',
+    actionFilter = 'all',
+    statusFilter = 'all',
+    executorFilter = 'all'
+} = {}) => {
     const conditions = [];
     const params = [];
 
@@ -50,6 +126,9 @@ const buildWhereClause = ({ search = '', filter = 'all', sensorFilter = 'all' } 
     const parsedTime = parseTimeSearchKeyword(keyword);
     const timeCondition = buildTimeCondition('ah.created_at', parsedTime);
     const sensorCondition = buildSensorFilterCondition(sensorFilter);
+    const actionCondition = buildActionFilterCondition(actionFilter);
+    const statusCondition = buildStatusFilterCondition(statusFilter);
+    const executorCondition = buildExecutorFilterCondition(executorFilter);
 
     if (keyword) {
         if (filterKey === 'time') {
@@ -57,11 +136,11 @@ const buildWhereClause = ({ search = '', filter = 'all', sensorFilter = 'all' } 
                 conditions.push(timeCondition.sql);
                 params.push(timeCondition.param);
             } else {
-                conditions.push(SEARCH_FILTER_MAP.time);
+                conditions.push(ACTION_HISTORY_SEARCH_MAP.time);
                 params.push(wildcard);
             }
-        } else if (SEARCH_FILTER_MAP[filterKey]) {
-            conditions.push(SEARCH_FILTER_MAP[filterKey]);
+        } else if (ACTION_HISTORY_SEARCH_MAP[filterKey]) {
+            conditions.push(ACTION_HISTORY_SEARCH_MAP[filterKey]);
             params.push(wildcard);
         } else {
             const allConditions = [
@@ -88,6 +167,21 @@ const buildWhereClause = ({ search = '', filter = 'all', sensorFilter = 'all' } 
     if (sensorCondition) {
         conditions.push(sensorCondition.sql);
         params.push(...sensorCondition.params);
+    }
+
+    if (actionCondition) {
+        conditions.push(actionCondition.sql);
+        params.push(...actionCondition.params);
+    }
+
+    if (statusCondition) {
+        conditions.push(statusCondition.sql);
+        params.push(...statusCondition.params);
+    }
+
+    if (executorCondition) {
+        conditions.push(executorCondition.sql);
+        params.push(...executorCondition.params);
     }
 
     if (!conditions.length) {

@@ -11,11 +11,6 @@ const baseApi = axios.create({
 // Request interceptor
 baseApi.interceptors.request.use(
   (config) => {
-    // Có thể thêm token vào header ở đây nếu cần
-    // const token = localStorage.getItem('token');
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
     return config;
   },
   (error) => {

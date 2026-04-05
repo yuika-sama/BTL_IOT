@@ -15,6 +15,26 @@ export const ACTION_HISTORY_FILTER_OPTIONS = [
     { type: 'temperature', displayText: 'Nhiệt kế' }
 ];
 
+export const ACTION_HISTORY_ACTION_OPTIONS = [
+    { value: 'all', label: 'Tất cả' },
+    { value: 'on', label: 'Bật' },
+    { value: 'off', label: 'Tắt' }
+];
+
+export const ACTION_HISTORY_STATUS_OPTIONS = [
+    { value: 'all', label: 'Tất cả' },
+    { value: 'success', label: 'Thành công' },
+    { value: 'error', label: 'Lỗi' },
+    { value: 'pending', label: 'Chờ xử lý' },
+    { value: 'waiting', label: 'Đang chờ' }
+];
+
+export const ACTION_HISTORY_EXECUTOR_OPTIONS = [
+    { value: 'all', label: 'Tất cả' },
+    { value: 'auto', label: 'Hệ thống' },
+    { value: 'manual', label: 'Người dùng' }
+];
+
 const DEVICE_DISPLAY_NAME_MAP = {
     dev_temp_led: 'Nhiệt độ',
     temp_led: 'Nhiệt độ',

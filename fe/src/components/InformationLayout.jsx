@@ -7,6 +7,7 @@ import Pagination from './InformationComponents/Pagination.jsx';
 export default function InformationLayout({
     title,
     filterOptions = [], 
+    extraFilterConfigs = [],
     columns = [], 
     data = [], 
     loading = false,
@@ -37,6 +38,7 @@ export default function InformationLayout({
             
             <TopBar 
                 filterOptions={filterOptions} 
+                extraFilterConfigs={extraFilterConfigs}
                 onSearch={onSearch}
                 onFilterChange={onFilterChange}
                 onSort={onSort}
