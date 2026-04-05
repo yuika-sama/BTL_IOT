@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import MainLayout from '../components/MainLayout.jsx';
 import InformationLayout from '../components/InformationLayout.jsx';
-import dataSensorService from '../services/dataSensorService.jsx';
-import {formatNumber, formatTime} from '../utils/formatter.js';
+import dataSensorService from '../services/dataSensorService.js';
+import { formatNumber, formatTime } from '../utils/formatter.js';
 import { normalizeSensorLevel, createBackgroundTheme } from '../utils/themeUtils.js';
+import { DATA_SENSOR_FILTER_OPTIONS } from '../utils/mappings.js';
 
 export default function DataSensor(){
     const [data, setData] = useState([]);
@@ -37,15 +38,6 @@ export default function DataSensor(){
     };
 
     const backgroundTheme = createBackgroundTheme(sensorLevels);
-
-    const filterOptions = [
-        {type: 'all', displayText: 'Tất cả'},
-        {type: 'temperature', displayText: 'Nhiệt kế'},
-        {type: 'humidity', displayText: 'Máy bơm'},
-        {type: 'light', displayText: 'Quang cảm'},
-        {type: 'gas', displayText: 'Khoá gas'},
-        {type: 'time', displayText: 'Thời gian'},
-    ]
 
     // Fetch data từ API
     useEffect(() => {
@@ -118,22 +110,59 @@ export default function DataSensor(){
     };
 
     const columns = [
-        { key: 'id',header: 'ID', accessor: 'id', cellClassName:'font-medium'},
-        { key: 'temperature', header: 'Nhiệt kế', accessor: 'temperature', render: (value) => (<span className="font-medium text-red-500">{formatNumber(value)}℃</span>)},
-        { key: 'humidity', header: 'Máy bơm', accessor: 'humidity', render: (value) => (<span className="font-medium text-blue-400">{formatNumber(value)}%</span>)},
-        { key: 'light', header: 'Quang cảm', accessor: 'light', render: (value) => (<span className="font-medium text-yellow-500">{formatNumber(value)} %(Lux)</span>)},
-        { key: 'gas', header: 'Khoá gas', accessor: 'gas', render: (value) => (<span className="font-medium text-gray-400">{formatNumber(value)} %(ppm)</span>)},
-        { key: 'timestamp', header: 'Thời gian', accessor: 'timestamp', cellClassName:'', render: (value) => (<span className="text-sm text-gray-500">{formatTime(value)}</span>)},
-    ]
-    return(
+        { key: 'id', header: 'ID', accessor: 'id', cellClassName: 'font-medium' },
+        {
+            key: 'temperature',
+            header: 'Nhiệt kế',
+            accessor: 'temperature',
+            render: (value) => {
+                return <span className="font-medium text-red-500">{formatNumber(value)}℃</span>;
+            }
+        },
+        {
+            key: 'humidity',
+            header: 'Máy bơm',
+            accessor: 'humidity',
+            render: (value) => {
+                return <span className="font-medium text-blue-400">{formatNumber(value)}%</span>;
+            }
+        },
+        {
+            key: 'light',
+            header: 'Quang cảm',
+            accessor: 'light',
+            render: (value) => {
+                return <span className="font-medium text-yellow-500">{formatNumber(value)} %(Lux)</span>;
+            }
+        },
+        {
+            key: 'gas',
+            header: 'Khoá gas',
+            accessor: 'gas',
+            render: (value) => {
+                return <span className="font-medium text-gray-400">{formatNumber(value)} %(ppm)</span>;
+            }
+        },
+        {
+            key: 'timestamp',
+            header: 'Thời gian',
+            accessor: 'timestamp',
+            cellClassName: '',
+            render: (value) => {
+                return <span className="text-sm text-gray-500">{formatTime(value)}</span>;
+            }
+        }
+    ];
+    return (
         <MainLayout backgroundTheme={backgroundTheme}>
             <InformationLayout
-                filterOptions={filterOptions}
+                filterOptions={DATA_SENSOR_FILTER_OPTIONS}
                 columns={columns}
                 data={data}
                 loading={loading}
                 error={error}
                 pagination={pagination}
+                defaultSortOrder="desc"
                 onPageChange={handlePageChange}
                 onLimitChange={handleLimitChange}
                 onFilterChange={handleFilterChange}

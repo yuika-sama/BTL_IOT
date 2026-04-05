@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import InformationLayout from '../components/InformationLayout.jsx';
 import MainLayout from '../components/MainLayout.jsx';
-import actionHistoryService from '../services/actionHistoryService.jsx';
+import actionHistoryService from '../services/actionHistoryService.js';
 import { formatTime } from '../utils/formatter.js';
 import { normalizeSensorLevel, createBackgroundTheme } from '../utils/themeUtils.js';
+import { ACTION_HISTORY_FILTER_OPTIONS } from '../utils/mappings.js';
 
 export default function ActionHistory(){
     const [data, setData] = useState([]);
@@ -37,14 +38,6 @@ export default function ActionHistory(){
     };
 
     const backgroundTheme = createBackgroundTheme(sensorLevels);
-
-    const filterOptions = [
-        {type: 'all', displayText: 'Tất cả'},
-        {type: 'humidity', displayText: 'Độ ẩm'},
-        {type: 'gas', displayText: 'Gas'},
-        {type: 'light', displayText: 'Ánh sáng'},
-        {type: 'temperature', displayText: 'Nhiệt độ'},
-    ]
 
     // Fetch data từ API
     useEffect(() => {
@@ -188,7 +181,7 @@ export default function ActionHistory(){
     return(
         <MainLayout backgroundTheme={backgroundTheme}>
             <InformationLayout
-                filterOptions={filterOptions}
+                filterOptions={ACTION_HISTORY_FILTER_OPTIONS}
                 columns={columns}
                 data={data}
                 loading={loading}

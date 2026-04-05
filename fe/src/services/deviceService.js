@@ -1,4 +1,4 @@
-import baseApi from './baseApi.jsx';
+import baseApi from './baseApi.js';
 
 const deviceService = {
   getAllDevicesInfo: async () => {

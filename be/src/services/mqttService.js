@@ -16,6 +16,8 @@ class MqttService {
         this.latestDeviceStatus = {};
         this.pendingStatusWaiters = new Map();
         this.lastHardwareActivityAt = 0;
+        this.isSyncInProgress = false;
+        this.pendingSyncRequested = false;
         this.hardwareHeartbeatTimeoutMs = Number(process.env.HARDWARE_HEARTBEAT_TIMEOUT_MS || 15000);
         const brokerUrl = process.env.MQTT_SERVER || 'mqtt://localhost';
         const brokerPort = Number(process.env.MQTT_PORT || 2204);
@@ -150,7 +152,12 @@ class MqttService {
     }
 
     markHardwareActivity() {
+        const wasConnected = this.isHardwareConnected();
         this.lastHardwareActivityAt = Date.now();
+
+        if (!wasConnected) {
+            this.requestDeviceStateSync('hardware-activity');
+        }
     }
 
     isHardwareConnected() {
@@ -168,9 +175,11 @@ class MqttService {
     init() {
         this.mqttClient.on('connect', () => {
             // Đăng ký các topic mà ESP32 sẽ gửi lên
-            this.mqttClient.subscribe(['sensor/data', 'device/status'], (err) => {
+            this.mqttClient.subscribe(['sensor/data', 'device/status', 'device/sync'], (err) => {
                 if (!err) console.log('📡 [MQTT] Subscribed to all topics');
             });
+
+            this.requestDeviceStateSync('mqtt-connect');
         });
 
         this.mqttClient.on('disconnect', () => {
@@ -202,12 +211,124 @@ class MqttService {
                         this.updateDeviceStatus(payload);
                         this.io.emit('device_status_update', payload);
                         break;
+
+                    case 'device/sync':
+                        this.markHardwareActivity();
+                        this.requestDeviceStateSync('device-sync');
+                        break;
                 }
             } catch (error) {
                 // Nếu hardware gửi chuỗi text không phải JSON (ví dụ lệnh lỗi)
                 console.log(`📩 [MQTT Raw] Topic: ${topic} - Msg: ${message.toString()}`);
+
+                if (topic === 'device/sync') {
+                    this.markHardwareActivity();
+                    this.requestDeviceStateSync('device-sync-raw');
+                }
             }
         });
+    }
+
+    resolveDeviceCommandPrefix(deviceName = '') {
+        const name = this.normalizeText(deviceName);
+
+        const mappingRules = [
+            {
+                prefix: 'TEMP',
+                keywords: ['dev_temp_led', 'temperature', 'temp', 'nhiet ke', 'nhiet do', 'nhiet']
+            },
+            {
+                prefix: 'LDR',
+                keywords: ['dev_ldr_led', 'ldr', 'light', 'quang cam', 'anh sang', 'quang']
+            },
+            {
+                prefix: 'HUM',
+                keywords: ['dev_hum_led', 'humidity', 'hum', 'do am', 'do_am', 'may bom', 'bom']
+            },
+            {
+                prefix: 'GAS',
+                keywords: ['dev_gas_led', 'dev_dust_led', 'gas', 'khoa gas', 'khoa', 'dust', 'bui']
+            }
+        ];
+
+        const matchedRule = mappingRules.find((rule) =>
+            rule.keywords.some((keyword) => name.includes(keyword))
+        );
+
+        return matchedRule ? matchedRule.prefix : null;
+    }
+
+    async sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    async syncDeviceStatesFromDatabase(trigger = 'unknown') {
+        if (!this.isConnected()) {
+            return;
+        }
+
+        this.isSyncInProgress = true;
+
+        try {
+            const devices = await query(
+                `
+                    SELECT id, name, value
+                    FROM devices
+                    ORDER BY created_at ASC
+                `
+            );
+
+            for (const device of devices || []) {
+                const commandPrefix = this.resolveDeviceCommandPrefix(device?.name);
+                if (!commandPrefix) {
+                    continue;
+                }
+
+                const desiredValue = Number(device?.value) === 1 ? 1 : 0;
+                const command = `${commandPrefix}_${desiredValue === 1 ? 'ON' : 'OFF'}`;
+
+                try {
+                    await this.publishControl(command);
+                    await this.sleep(120);
+                } catch (publishError) {
+                    console.error('[MQTT] Device sync publish failed:', {
+                        trigger,
+                        deviceId: device?.id,
+                        deviceName: device?.name,
+                        command,
+                        error: publishError?.message || publishError
+                    });
+                }
+            }
+
+            console.log(`[MQTT] Device state sync completed (trigger: ${trigger})`);
+        } catch (error) {
+            console.error(`[MQTT] Device state sync failed (trigger: ${trigger}):`, error.message);
+        } finally {
+            this.isSyncInProgress = false;
+
+            if (this.pendingSyncRequested) {
+                this.pendingSyncRequested = false;
+                this.requestDeviceStateSync('queued');
+            }
+        }
+    }
+
+    requestDeviceStateSync(trigger = 'unknown') {
+        if (!this.isConnected()) {
+            return;
+        }
+
+        if (this.isSyncInProgress) {
+            this.pendingSyncRequested = true;
+            return;
+        }
+
+        this.pendingSyncRequested = false;
+        this.syncDeviceStatesFromDatabase(trigger)
+            .catch((error) => {
+                console.error('[MQTT] Unexpected sync error:', error?.message || error);
+            });
     }
 
     normalizeStateValue(value) {
@@ -222,16 +343,19 @@ class MqttService {
     getStateKeyByDeviceName(deviceName = '') {
         const name = this.normalizeText(deviceName);
 
-        if (name.includes('dev_temp_led') || name.includes('temp') || name.includes('nhiet do') || name.includes('nhiet')) {
+        if (name.includes('dev_temp_led') || name.includes('temperature') || name.includes('temp') || name.includes('nhiet ke') || name.includes('nhiet do') || name.includes('nhiet')) {
             return 'temp_led';
         }
-        if (name.includes('dev_hum_led') || name.includes('hum') || name.includes('do am') || name.includes('am')) {
-            return 'hum_led';
-        }
-        if (name.includes('dev_ldr_led') || name.includes('ldr') || name.includes('light') || name.includes('anh sang') || name.includes('anh')) {
+
+        if (name.includes('dev_ldr_led') || name.includes('ldr') || name.includes('light') || name.includes('quang cam') || name.includes('anh sang') || name.includes('quang')) {
             return 'ldr_led';
         }
-        if (name.includes('dev_gas_led') || name.includes('dev_dust_led') || name.includes('dust') || name.includes('gas') || name.includes('bui')) {
+
+        if (name.includes('dev_hum_led') || name.includes('humidity') || name.includes('hum') || name.includes('do am') || name.includes('do_am') || name.includes('may bom') || name.includes('bom')) {
+            return 'hum_led';
+        }
+
+        if (name.includes('dev_gas_led') || name.includes('dev_dust_led') || name.includes('khoa gas') || name.includes('khoa') || name.includes('gas') || name.includes('dust') || name.includes('bui')) {
             return 'gas_led';
         }
 

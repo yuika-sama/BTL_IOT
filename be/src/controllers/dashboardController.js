@@ -1,11 +1,5 @@
 const { query } = require('../config/db');
-
-const SENSOR_TYPE_CONDITIONS = {
-    temperature: "(LOWER(s.name) LIKE '%temp%' OR LOWER(s.name) LIKE '%nhiet%')",
-    humidity: "(LOWER(s.name) LIKE '%hum%' OR LOWER(s.name) LIKE '%am%')",
-    light: "(LOWER(s.name) LIKE '%light%' OR LOWER(s.name) LIKE '%anh%' OR LOWER(s.name) LIKE '%ldr%')",
-    gas: "(LOWER(s.name) LIKE '%gas%' OR LOWER(s.name) LIKE '%khi%')"
-};
+const { getAllSensorTypes, getSensorSqlCondition } = require('../utils/sensorConfig');
 
 
 const getDeviceList = async (req, res) => {
@@ -49,7 +43,7 @@ const getInitialSensorData = async (req, res) => {
                     ds.value
                 FROM data_sensors ds
                 INNER JOIN sensors s ON s.id = ds.sensor_id
-                WHERE ${SENSOR_TYPE_CONDITIONS[type]}
+                WHERE ${getSensorSqlCondition(type)}
                 ORDER BY ds.created_at DESC
                 LIMIT ${limit}
             `;
@@ -98,7 +92,7 @@ const getLatestSensorValues = async (req, res) => {
                     ds.value
                 FROM data_sensors ds
                 INNER JOIN sensors s ON s.id = ds.sensor_id
-                WHERE ${SENSOR_TYPE_CONDITIONS[type]}
+                WHERE ${getSensorSqlCondition(type)}
                 ORDER BY ds.created_at DESC
                 LIMIT 1
             `;

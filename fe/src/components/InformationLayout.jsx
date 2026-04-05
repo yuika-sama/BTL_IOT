@@ -21,7 +21,7 @@ export default function InformationLayout({
     searchOnType = false,
     forceSearchFilter = null,
     sortLabel = 'Sắp xếp',
-    defaultSortOrder = 'asc',
+    defaultSortOrder = 'desc',
     children
 }) {
 

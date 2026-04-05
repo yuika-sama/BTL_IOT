@@ -1,29 +1,31 @@
 const { query } = require('../config/db');
+const { getNormalizedSortOrder, getActionHistorySearchFilter, ACTION_HISTORY_SEARCH_MAP } = require('../utils/sqlMappings');
+const { parseTimeSearchKeyword, buildTimeCondition } = require('../utils/timeParser');
+const { getAllSensorTypes, getSensorConfig } = require('../utils/sensorConfig');
 
-const ORDER_MAP = {
-    asc: 'ASC',
-    desc: 'DESC'
-};
-
-const SEARCH_FILTER_MAP = {
-    name: 'd.name LIKE ?',
-    action: 'ah.command LIKE ?',
-    status: 'ah.status LIKE ?',
-    user: 'ah.executor LIKE ?',
-    time: "DATE_FORMAT(ah.created_at, '%Y-%m-%d %H:%i:%s') LIKE ?"
-};
-
-const SENSOR_FILTER_KEYWORD_MAP = {
-    humidity: ['%hum%', '%do am%', '%độ ẩm%', '%am%'],
-    gas: ['%gas%', '%khi gas%', '%khí gas%', '%khi%'],
-    light: ['%light%', '%anh sang%', '%ánh sáng%', '%ldr%'],
-    temperature: ['%temp%', '%temperature%', '%nhiet%', '%nhiệt độ%']
-};
-
+/**
+ * Build sensor filter condition for action history
+ * Filters devices by sensor type using device name patterns
+ * @param {string} sensorFilter - Sensor type to filter by
+ * @returns {object|null} SQL condition object or null
+ */
 const buildSensorFilterCondition = (sensorFilter = 'all') => {
     const sensorKey = String(sensorFilter || 'all').trim().toLowerCase();
-    const keywords = SENSOR_FILTER_KEYWORD_MAP[sensorKey];
+    const config = getSensorConfig(sensorKey);
 
+    if (!config) {
+        return null;
+    }
+
+    // Map sensor type to device names
+    const deviceNameKeywords = {
+        humidity: ['%may bom%', '%máy bơm%'],
+        gas: ['%khoa gas%', '%khóa gas%'],
+        light: ['%quang cam%', '%quang cảm%'],
+        temperature: ['%nhiet ke%', '%nhiệt kế%']
+    };
+
+    const keywords = deviceNameKeywords[sensorKey];
     if (!keywords || !keywords.length) {
         return null;
     }
@@ -34,190 +36,10 @@ const buildSensorFilterCondition = (sensorFilter = 'all') => {
     };
 };
 
-const parseTimeSearchKeyword = (value) => {
-    const keyword = String(value || '')
-        .trim()
-        .replace(/,/g, ' ')
-        .replace(/\s+/g, ' ');
-    if (!keyword) {
-        return null;
-    }
-
-    const pad2 = (numLike) => String(numLike).padStart(2, '0');
-
-    const secondDmyMatch = keyword.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/);
-    if (secondDmyMatch) {
-        const [, day, month, year, hour, minute, second] = secondDmyMatch;
-        return { type: 'second', value: `${year}-${month}-${day} ${hour}:${minute}:${second}` };
-    }
-
-    const minuteDmyMatch = keyword.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})$/);
-    if (minuteDmyMatch) {
-        const [, day, month, year, hour, minute] = minuteDmyMatch;
-        return { type: 'minute', value: `${year}-${month}-${day} ${hour}:${minute}` };
-    }
-
-    const hourDmyMatch = keyword.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2})$/);
-    if (hourDmyMatch) {
-        const [, day, month, year, hour] = hourDmyMatch;
-        return { type: 'hour', value: `${year}-${month}-${day} ${hour}` };
-    }
-
-    const dayDmyMatch = keyword.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-    if (dayDmyMatch) {
-        const [, day, month, year] = dayDmyMatch;
-        return { type: 'day', value: `${year}-${month}-${day}` };
-    }
-
-    // Support both MM/YYYY and DD/YYYY patterns.
-    const secondShortYearMatch = keyword.match(/^(\d{1,2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/);
-    if (secondShortYearMatch) {
-        const [, firstPartRaw, year, hour, minute, second] = secondShortYearMatch;
-        const firstPart = Number(firstPartRaw);
-        const paddedFirstPart = pad2(firstPartRaw);
-
-        if (firstPart >= 1 && firstPart <= 12) {
-            return {
-                type: 'monthYearSecond',
-                value: `${paddedFirstPart}/${year} ${hour}:${minute}:${second}`
-            };
-        }
-
-        if (firstPart >= 13 && firstPart <= 31) {
-            return {
-                type: 'dayYearSecond',
-                value: `${paddedFirstPart}/${year} ${hour}:${minute}:${second}`
-            };
-        }
-    }
-
-    const minuteShortYearMatch = keyword.match(/^(\d{1,2})\/(\d{4})\s+(\d{2}):(\d{2})$/);
-    if (minuteShortYearMatch) {
-        const [, firstPartRaw, year, hour, minute] = minuteShortYearMatch;
-        const firstPart = Number(firstPartRaw);
-        const paddedFirstPart = pad2(firstPartRaw);
-
-        if (firstPart >= 1 && firstPart <= 12) {
-            return {
-                type: 'monthYearMinute',
-                value: `${paddedFirstPart}/${year} ${hour}:${minute}`
-            };
-        }
-
-        if (firstPart >= 13 && firstPart <= 31) {
-            return {
-                type: 'dayYearMinute',
-                value: `${paddedFirstPart}/${year} ${hour}:${minute}`
-            };
-        }
-    }
-
-    const hourShortYearMatch = keyword.match(/^(\d{1,2})\/(\d{4})\s+(\d{2})$/);
-    if (hourShortYearMatch) {
-        const [, firstPartRaw, year, hour] = hourShortYearMatch;
-        const firstPart = Number(firstPartRaw);
-        const paddedFirstPart = pad2(firstPartRaw);
-
-        if (firstPart >= 1 && firstPart <= 12) {
-            return {
-                type: 'monthYearHour',
-                value: `${paddedFirstPart}/${year} ${hour}`
-            };
-        }
-
-        if (firstPart >= 13 && firstPart <= 31) {
-            return {
-                type: 'dayYearHour',
-                value: `${paddedFirstPart}/${year} ${hour}`
-            };
-        }
-    }
-
-    const shortYearMatch = keyword.match(/^(\d{1,2})\/(\d{4})$/);
-    if (shortYearMatch) {
-        const [, firstPartRaw, year] = shortYearMatch;
-        const firstPart = Number(firstPartRaw);
-        const paddedFirstPart = pad2(firstPartRaw);
-
-        if (firstPart >= 1 && firstPart <= 12) {
-            return {
-                type: 'monthYear',
-                value: `${paddedFirstPart}/${year}`
-            };
-        }
-
-        if (firstPart >= 13 && firstPart <= 31) {
-            return {
-                type: 'dayYear',
-                value: `${paddedFirstPart}/${year}`
-            };
-        }
-    }
-
-    const secondYmdMatch = keyword.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})$/);
-    if (secondYmdMatch) {
-        const [, year, month, day, hour, minute, second] = secondYmdMatch;
-        return { type: 'second', value: `${year}-${month}-${day} ${hour}:${minute}:${second}` };
-    }
-
-    const minuteYmdMatch = keyword.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})$/);
-    if (minuteYmdMatch) {
-        const [, year, month, day, hour, minute] = minuteYmdMatch;
-        return { type: 'minute', value: `${year}-${month}-${day} ${hour}:${minute}` };
-    }
-
-    const hourYmdMatch = keyword.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2})$/);
-    if (hourYmdMatch) {
-        const [, year, month, day, hour] = hourYmdMatch;
-        return { type: 'hour', value: `${year}-${month}-${day} ${hour}` };
-    }
-
-    const dayYmdMatch = keyword.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (dayYmdMatch) {
-        const [, year, month, day] = dayYmdMatch;
-        return { type: 'day', value: `${year}-${month}-${day}` };
-    }
-
-    return null;
-};
-
-const buildTimeCondition = (column, parsedTime) => {
-    if (!parsedTime) {
-        return null;
-    }
-
-    if (parsedTime.type === 'day') {
-        return {
-            sql: `DATE(${column}) = ?`,
-            param: parsedTime.value
-        };
-    }
-
-    const dateFormatByType = {
-        hour: '%Y-%m-%d %H',
-        minute: '%Y-%m-%d %H:%i',
-        second: '%Y-%m-%d %H:%i:%s',
-        monthYear: '%m/%Y',
-        monthYearHour: '%m/%Y %H',
-        monthYearMinute: '%m/%Y %H:%i',
-        monthYearSecond: '%m/%Y %H:%i:%s',
-        dayYear: '%d/%Y',
-        dayYearHour: '%d/%Y %H',
-        dayYearMinute: '%d/%Y %H:%i',
-        dayYearSecond: '%d/%Y %H:%i:%s'
-    };
-
-    const mysqlDateFormat = dateFormatByType[parsedTime.type];
-    if (mysqlDateFormat) {
-        return {
-            sql: `DATE_FORMAT(${column}, '${mysqlDateFormat}') = ?`,
-            param: parsedTime.value
-        };
-    }
-
-    return null;
-};
-
+/**
+ * Build WHERE clause for action history queries
+ * Handles search, filter, and sensor filtering
+ */
 const buildWhereClause = ({ search = '', filter = 'all', sensorFilter = 'all' } = {}) => {
     const conditions = [];
     const params = [];
@@ -285,7 +107,7 @@ const getAllActionHistory = async (req, res) => {
         const offset = (page - 1) * limit;
 
         const orderInput = String(req.query.order || 'desc').toLowerCase();
-        const sortOrder = ORDER_MAP[orderInput] || ORDER_MAP.desc;
+        const sortOrder = getNormalizedSortOrder(orderInput);
         const { whereClause, whereParams } = buildWhereClause(req.query);
 
         const dataSql = `SELECT 

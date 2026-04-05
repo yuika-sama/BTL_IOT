@@ -10,7 +10,7 @@ export default function TopBar({
     searchOnType = false,
     forceSearchFilter = null,
     sortLabel = 'Sắp xếp',
-    defaultSortOrder = 'asc'
+    defaultSortOrder = 'desc'
 }) {
     const [searchValue, setSearchValue] = useState('');
     const [selectedFilter, setSelectedFilter] = useState('all');

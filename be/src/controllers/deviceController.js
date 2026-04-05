@@ -1,30 +1,6 @@
 const { randomUUID } = require('crypto');
 const { query } = require('../config/db');
-
-const normalizeText = (value = '') => {
-    return String(value)
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .trim()
-        .toLowerCase();
-};
-
-const resolveDeviceCommandPrefix = (deviceName = '') => {
-    const normalizedName = normalizeText(deviceName);
-
-    const mappingRules = [
-        { prefix: 'TEMP', keywords: ['dev_temp_led', 'temp', 'nhiet do', 'nhiet'] },
-        { prefix: 'HUM', keywords: ['dev_hum_led', 'hum', 'do am', 'am'] },
-        { prefix: 'LDR', keywords: ['dev_ldr_led', 'ldr', 'light', 'anh sang', 'anh'] },
-        { prefix: 'GAS', keywords: ['dev_gas_led', 'gas', 'khi gas'] }
-    ];
-
-    const matchedRule = mappingRules.find((rule) =>
-        rule.keywords.some((keyword) => normalizedName.includes(keyword))
-    );
-
-    return matchedRule ? matchedRule.prefix : 'DEVICE';
-};
+const { resolveDeviceCommandPrefix } = require('../utils/deviceResolver');
 
 const toggleDevice = async (req, res) => {
     try {

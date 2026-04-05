@@ -1,114 +1,30 @@
 const { query } = require('../config/db');
+const { getNormalizedSortOrder, SENSOR_DATA_SEARCH_MAP, SENSOR_DATA_NUMERIC_FILTER_MAP } = require('../utils/sqlMappings');
+const { parseTimeSearchKeyword, buildTimeCondition } = require('../utils/timeParser');
+const { getAllSensorTypes, getSensorSqlCondition } = require('../utils/sensorConfig');
 
-const ORDER_MAP = {
-    asc: 'ASC',
-    desc: 'DESC'
-};
+/**
+ * Build base aggregate SQL dynamically based on sensor configuration
+ */
+const buildBaseAggregateSql = () => {
+    const sensors = getAllSensorTypes();
+    const caseStatements = sensors.map(
+        (sensorType) => `MAX(CASE WHEN ${getSensorSqlCondition(sensorType)} THEN ds.value END) AS ${sensorType}`
+    ).join(',\n        ');
 
-const SEARCH_FILTER_MAP = {
-    temperature: 'CAST(g.temperature AS CHAR) LIKE ?',
-    humidity: 'CAST(g.humidity AS CHAR) LIKE ?',
-    light: 'CAST(g.light AS CHAR) LIKE ?',
-    gas: 'CAST(g.gas AS CHAR) LIKE ?',
-    time: "DATE_FORMAT(g.timestamp, '%Y-%m-%d %H:%i:%s') LIKE ?"
-};
-
-const NUMERIC_FILTER_COLUMN_MAP = {
-    temperature: 'g.temperature',
-    humidity: 'g.humidity',
-    light: 'g.light',
-    gas: 'g.gas'
-};
-
-const SENSOR_TYPE_CONDITIONS = {
-    temperature: "(LOWER(s.name) LIKE '%temp%' OR LOWER(s.name) LIKE '%nhiet%')",
-    humidity: "(LOWER(s.name) LIKE '%hum%' OR LOWER(s.name) LIKE '%am%')",
-    light: "(LOWER(s.name) LIKE '%light%' OR LOWER(s.name) LIKE '%anh%' OR LOWER(s.name) LIKE '%anh sang%' OR LOWER(s.name) LIKE '%ánh%' OR LOWER(s.name) LIKE '%sáng%' OR LOWER(s.name) LIKE '%ldr%')",
-    gas: "(LOWER(s.name) LIKE '%gas%' OR LOWER(s.name) LIKE '%khi%')"
-};
-
-const BASE_AGGREGATE_SQL = `
+    return `
     SELECT
         MAX(ds.created_at) AS timestamp,
-        MAX(CASE WHEN ${SENSOR_TYPE_CONDITIONS.temperature} THEN ds.value END) AS temperature,
-        MAX(CASE WHEN ${SENSOR_TYPE_CONDITIONS.humidity} THEN ds.value END) AS humidity,
-        MAX(CASE WHEN ${SENSOR_TYPE_CONDITIONS.light} THEN ds.value END) AS light,
-        MAX(CASE WHEN ${SENSOR_TYPE_CONDITIONS.gas} THEN ds.value END) AS gas
+        ${caseStatements}
     FROM data_sensors ds
     INNER JOIN sensors s ON s.id = ds.sensor_id
     GROUP BY DATE_FORMAT(ds.created_at, '%Y-%m-%d %H:%i:%s')
 `;
-
-const parseTimeSearchKeyword = (value) => {
-    const keyword = String(value || '').trim().replace(',', ' ');
-    if (!keyword) {
-        return null;
-    }
-
-    const secondDmyMatch = keyword.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/);
-    if (secondDmyMatch) {
-        const [, day, month, year, hour, minute, second] = secondDmyMatch;
-        return { type: 'second', value: `${year}-${month}-${day} ${hour}:${minute}:${second}` };
-    }
-
-    const minuteDmyMatch = keyword.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})$/);
-    if (minuteDmyMatch) {
-        const [, day, month, year, hour, minute] = minuteDmyMatch;
-        return { type: 'minute', value: `${year}-${month}-${day} ${hour}:${minute}` };
-    }
-
-    const dayDmyMatch = keyword.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-    if (dayDmyMatch) {
-        const [, day, month, year] = dayDmyMatch;
-        return { type: 'day', value: `${year}-${month}-${day}` };
-    }
-
-    const secondYmdMatch = keyword.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})$/);
-    if (secondYmdMatch) {
-        const [, year, month, day, hour, minute, second] = secondYmdMatch;
-        return { type: 'second', value: `${year}-${month}-${day} ${hour}:${minute}:${second}` };
-    }
-
-    const minuteYmdMatch = keyword.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})$/);
-    if (minuteYmdMatch) {
-        const [, year, month, day, hour, minute] = minuteYmdMatch;
-        return { type: 'minute', value: `${year}-${month}-${day} ${hour}:${minute}` };
-    }
-
-    const dayYmdMatch = keyword.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (dayYmdMatch) {
-        const [, year, month, day] = dayYmdMatch;
-        return { type: 'day', value: `${year}-${month}-${day}` };
-    }
-
-    return null;
 };
 
-const buildTimeCondition = (column, parsedTime) => {
-    if (!parsedTime) {
-        return null;
-    }
-
-    if (parsedTime.type === 'day') {
-        return {
-            sql: `DATE(${column}) = ?`,
-            param: parsedTime.value
-        };
-    }
-
-    if (parsedTime.type === 'minute') {
-        return {
-            sql: `DATE_FORMAT(${column}, '%Y-%m-%d %H:%i') = ?`,
-            param: parsedTime.value
-        };
-    }
-
-    return {
-        sql: `DATE_FORMAT(${column}, '%Y-%m-%d %H:%i:%s') = ?`,
-        param: parsedTime.value
-    };
-};
-
+/**
+ * Parse numeric keyword for filtering
+ */
 const parseNumericKeyword = (value) => {
     const normalized = String(value || '').trim().replace(',', '.');
     if (!normalized) {
@@ -140,7 +56,7 @@ const buildWhereClause = ({ search = '', filter = 'all' } = {}) => {
 
     const wildcard = `%${keyword}%`;
 
-    const numericColumn = NUMERIC_FILTER_COLUMN_MAP[filterKey];
+    const numericColumn = SENSOR_DATA_NUMERIC_FILTER_MAP[filterKey];
     const numericKeyword = parseNumericKeyword(keyword);
 
     if (numericColumn && numericKeyword !== null) {
@@ -159,7 +75,7 @@ const buildWhereClause = ({ search = '', filter = 'all' } = {}) => {
             conditions.push(timeCondition.sql);
             params.push(timeCondition.param);
         } else {
-            conditions.push(SEARCH_FILTER_MAP.time);
+            conditions.push(SENSOR_DATA_SEARCH_MAP.time);
             params.push(wildcard);
         }
 
@@ -169,8 +85,8 @@ const buildWhereClause = ({ search = '', filter = 'all' } = {}) => {
         };
     }
 
-    if (SEARCH_FILTER_MAP[filterKey]) {
-        conditions.push(SEARCH_FILTER_MAP[filterKey]);
+    if (SENSOR_DATA_SEARCH_MAP[filterKey]) {
+        conditions.push(SENSOR_DATA_SEARCH_MAP[filterKey]);
         params.push(wildcard);
     } else {
         const allConditions = [
@@ -215,14 +131,15 @@ const getSensorHistory = async (req, res) => {
         const offset = (page - 1) * limit;
 
         const orderInput = String(req.query.order || 'desc').toLowerCase();
-        const sortOrder = ORDER_MAP[orderInput] || ORDER_MAP.desc;
+        const sortOrder = getNormalizedSortOrder(orderInput);
 
         const { whereClause, whereParams } = buildWhereClause(req.query);
+        const baseAggregateSql = buildBaseAggregateSql();
 
         const dataSql = `
             SELECT g.timestamp, g.temperature, g.humidity, g.light, g.gas
             FROM (
-                ${BASE_AGGREGATE_SQL}
+                ${baseAggregateSql}
             ) g
             ${whereClause}
             ORDER BY g.timestamp ${sortOrder}
@@ -232,7 +149,7 @@ const getSensorHistory = async (req, res) => {
         const countSql = `
             SELECT COUNT(*) AS total
             FROM (
-                ${BASE_AGGREGATE_SQL}
+                ${baseAggregateSql}
             ) g
             ${whereClause}
         `;

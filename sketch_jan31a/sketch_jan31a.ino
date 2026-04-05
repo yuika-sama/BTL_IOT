@@ -157,7 +157,7 @@ void loop() {
         send_sensor_data("light", ldr_val);
         
         // Đọc và gửi dữ liệu Gas
-        int gas_analog = (1.0 - (analogRead(PIN_MQ4_A0)/1023))*100.0;
+        int gas_analog = (1.0 - (analogRead(PIN_MQ4_A0)/10000.0))*100.0;
         send_sensor_data("gas_raw", (float)gas_analog);
 
         // Cảnh báo Gas qua Serial

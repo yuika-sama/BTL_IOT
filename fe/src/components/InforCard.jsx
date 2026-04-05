@@ -1,25 +1,6 @@
 import React, {useState, useEffect} from 'react'
 import { Thermometer, Wind, Droplets, Sun, Cloud} from 'lucide-react';
-
-const clamp01 = (value) => Math.min(1, Math.max(0, Number(value) || 0));
-
-const toRgba = (hexColor, alpha = 1) => {
-    const normalized = String(hexColor || '').replace('#', '');
-    const safeHex = normalized.length === 3
-        ? normalized.split('').map((char) => `${char}${char}`).join('')
-        : normalized.padEnd(6, '0').slice(0, 6);
-    const intValue = Number.parseInt(safeHex, 16);
-    const r = (intValue >> 16) & 255;
-    const g = (intValue >> 8) & 255;
-    const b = intValue & 255;
-    return `rgba(${r}, ${g}, ${b}, ${clamp01(alpha)})`;
-};
-
-const normalizeSensorLevel = (value, min, max) => {
-    const numeric = Number(value);
-    if (Number.isNaN(numeric) || max <= min) return 0;
-    return clamp01((numeric - min) / (max - min));
-};
+import { normalizeSensorLevel, toRgba } from '../utils/themeUtils.js';
 
 export default function InforCard({
     temperature,

@@ -1,32 +1,6 @@
-import baseApi from './baseApi.jsx';
+import baseApi from './baseApi.js';
 import { formatDateTime, isValidDateTime } from '../utils/formatter.js';
-const normalizePagination = (pagination = {}) => {
-  return {
-    page: Number(pagination.page || 1),
-    limit: Number(pagination.limit || 10),
-    total: Number(pagination.total || 0),
-    totalPages: Number(pagination.totalPages || 0),
-  };
-};
-
-const buildHistoryParams = (params = {}) => {
-  const query = {
-    page: params.page,
-    limit: params.limit,
-    search: params.search,
-    filter: params.filter,
-    order: params.order,
-  };
-
-  Object.keys(query).forEach((key) => {
-    const value = query[key];
-    if (value === undefined || value === null || value === '') {
-      delete query[key];
-    }
-  });
-
-  return query;
-};
+import { buildQueryParams, normalizePagination } from '../utils/queryUtils.js';
 
 const dataSensorService = {
   getSensorHistory: async (params = {}) => {
@@ -43,7 +17,7 @@ const dataSensorService = {
     }
 
     const response = await baseApi.get('/data-sensors', {
-      params: buildHistoryParams(processedParams),
+      params: buildQueryParams(processedParams, ['page', 'limit', 'search', 'filter', 'order']),
     });
 
     return {

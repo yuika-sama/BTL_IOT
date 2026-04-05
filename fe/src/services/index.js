@@ -1,8 +1,8 @@
 // Export tất cả services
-import deviceService from './deviceService';
-import dataSensorService from './dataSensorService';
-import actionHistoryService from './actionHistoryService';
-import socketService from './socketService';
+import deviceService from './deviceService.js';
+import dataSensorService from './dataSensorService.js';
+import actionHistoryService from './actionHistoryService.js';
+import socketService from './socketService.js';
 
 export {
   deviceService,
