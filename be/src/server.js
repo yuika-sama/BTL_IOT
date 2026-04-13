@@ -23,6 +23,7 @@ const io = new Server(server, {
 const mqttService = new MqttService(io);
 app.locals.mqttService = mqttService;
 
+// Hàm xây dựng trạng thái kết nối để gửi qua Socket.io
 function buildSocketConnectionStatus() {
     const mqttConnected = mqttService.isConnected();
     const hardwareConnected = mqttService.isHardwareConnected();

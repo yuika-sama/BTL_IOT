@@ -18,7 +18,7 @@ class MqttService {
         this.lastHardwareActivityAt = 0;
         this.isSyncInProgress = false;
         this.pendingSyncRequested = false;
-        this.hardwareHeartbeatTimeoutMs = Number(process.env.HARDWARE_HEARTBEAT_TIMEOUT_MS || 15000);
+        this.hardwareHeartbeatTimeoutMs = Number(process.env.HARDWARE_HEARTBEAT_TIMEOUT_MS || 10000);
         const brokerUrl = process.env.MQTT_SERVER || 'mqtt://localhost';
         const brokerPort = Number(process.env.MQTT_PORT || 2204);
         this.mqttClient = mqtt.connect(brokerUrl, {
@@ -26,12 +26,13 @@ class MqttService {
             username: process.env.MQTT_USERNAME || '',
             password: process.env.MQTT_PASSWORD || '',
             clean: true,
-            reconnectPeriod: 5000
+            reconnectPeriod: 10000
         });
 
         this.init();
     }
 
+    // Chuẩn hoá tên thiết bị để map với trạng thái phần cứng và command prefix
     normalizeText(value = '') {
         return String(value)
             .normalize('NFD')
@@ -40,6 +41,7 @@ class MqttService {
             .toLowerCase();
     }
 
+    // Chuẩn hoá tên cảm biến để xác định loại sensor từ payload MQTT
     normalizeSensorType(sensorName = '') {
         const name = this.normalizeText(sensorName);
 
@@ -52,18 +54,20 @@ class MqttService {
         if (name.includes('light') || name.includes('ldr') || name.includes('anh')) {
             return 'light';
         }
-        if (name.includes('gas') || name.includes('dust') || name.includes('bui')) {
+        if (name.includes('gas')) {
             return 'gas';
         }
 
         return null;
     }
 
+    // Trích xuất dữ liệu cảm biến từ payload MQTT
     extractSensorReadings(payload = {}) {
         const timestamp = payload.timestamp || new Date().toISOString();
         const readings = [];
 
         if (payload.sensor !== undefined && payload.value !== undefined) {
+            // Hỗ trợ payload dạng { sensor: "temperature", value: 25.0 }
             const type = this.normalizeSensorType(payload.sensor);
             const value = Number(payload.value);
 
@@ -74,6 +78,7 @@ class MqttService {
             return readings;
         }
 
+        // Hỗ trợ payload dạng batch: { temperature: 25.0, humidity: 70 }
         Object.entries(payload).forEach(([key, rawValue]) => {
             const type = this.normalizeSensorType(key);
             const value = Number(rawValue);
@@ -86,12 +91,14 @@ class MqttService {
         return readings;
     }
 
+    // Lấy cấu hình cảm biến từ database dựa trên loại sensor
     async getSensorConfigByType(type) {
         const condition = SENSOR_TYPE_CONDITIONS[type];
         if (!condition) {
             return null;
         }
 
+        // Truy vấn sensor đầu tiên khớp với tên cảm biến
         const rows = await query(
             `
                 SELECT id
@@ -105,12 +112,15 @@ class MqttService {
         return rows?.[0] || null;
     }
 
+    // Chuyển đổi timestamp sang định dạng MySQL DATETIME
+    // Định dạng: 'YYYY-MM-DD HH:MM:SS'
     toMySqlDateTime(input) {
         const parsedDate = input ? new Date(input) : new Date();
         const date = Number.isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
         return date.toISOString().slice(0, 19).replace('T', ' ');
     }
 
+    // Chèn dữ liệu cảm biến vào database
     async insertSensorData(sensorId, value, timestamp) {
         const createdAt = this.toMySqlDateTime(timestamp);
 
@@ -123,6 +133,7 @@ class MqttService {
         );
     }
 
+    // Cập nhật trạng thái thiết bị dựa trên payload MQTT vào database
     async persistSensorReading(reading) {
         const sensor = await this.getSensorConfigByType(reading.type);
         if (!sensor) {
@@ -132,12 +143,14 @@ class MqttService {
         await this.insertSensorData(sensor.id, reading.value, reading.timestamp);
     }
 
+    // Phát sự kiện cập nhật cảm biến đến tất cả client kết nối qua event 'sensor_updates'
     emitSensorUpdate(readings = []) {
         readings.forEach((reading) => {
             this.io.emit('sensor_update', reading);
         });
     }
 
+    // Xử lý dữ liệu cảm biến nhận được từ MQTT, bao gồm trích xuất, lưu vào database và phát sự kiện cập nhật
     async handleSensorData(payload = {}) {
         const readings = this.extractSensorReadings(payload);
         if (!readings.length) {
@@ -151,6 +164,7 @@ class MqttService {
         this.emitSensorUpdate(readings);
     }
 
+    //  Đánh dấu hoạt động phần cứng để theo dõi kết nối và đồng bộ trạng thái khi có hoạt động mới
     markHardwareActivity() {
         const wasConnected = this.isHardwareConnected();
         this.lastHardwareActivityAt = Date.now();
@@ -160,6 +174,7 @@ class MqttService {
         }
     }
 
+    // Kiểm tra xem phần cứng có đang được kết nối dựa trên hoạt động gần đây hay không
     isHardwareConnected() {
         if (!this.isConnected()) {
             return false;
@@ -173,6 +188,7 @@ class MqttService {
     }
 
     init() {
+        // Thiết lập kết nối MQTT và đăng ký các sự kiện
         this.mqttClient.on('connect', () => {
             // Đăng ký các topic mà ESP32 sẽ gửi lên
             this.mqttClient.subscribe(['sensor/data', 'device/status', 'device/sync'], (err) => {
@@ -182,29 +198,37 @@ class MqttService {
             this.requestDeviceStateSync('mqtt-connect');
         });
 
+        // Đăng ký sự kiện ngắt kết nối để đánh dấu phần cứng không còn kết nối
         this.mqttClient.on('disconnect', () => {
             console.log('⚠️ [MQTT] Disconnected from Broker');
             this.lastHardwareActivityAt = 0;
         });
 
-        this.mqttClient.on('message', (topic, message) => {
+        // Đăng ký sự kiện nhận tin nhắn từ MQTT và xử lý theo topic
+        this.mqttClient.on('message', (topic, message) /* Nhận tin nhắn và xử lý theo topic */ => {
             try {
                 const payload = JSON.parse(message.toString());
 
+                // Bất kỳ hoạt động nào từ phần cứng cũng được coi là dấu hiệu của kết nối đang hoạt động
                 if (topic === 'sensor/data' || topic === 'device/status') {
                     this.markHardwareActivity();
                 }
                 
+                // Xử lý dữ liệu cảm biến, 
+                // cập nhật trạng thái thiết bị 
+                // hoặc đồng bộ trạng thái theo topic
                 switch (topic) {
+                    // Dữ liệu cảm biến mới từ phần cứng, 
+                    // cần trích xuất và lưu vào database, 
+                    // sau đó phát sự kiện cập nhật
                     case 'sensor/data':
-                        // Payload ví dụ: { sensor: "temperature", value: 25.0 }
-                        // hoặc batch: { temperature: 25.0, humidity: 70 }
                         this.handleSensorData(payload)
                             .catch((error) => {
                                 console.error('❌ [MQTT] Handle sensor data failed:', error.message);
                             });
                         break;
 
+                    // Xử lý toggle thiết bị
                     case 'device/status':
                         // Gửi trạng thái LED (ON/OFF)
                         // Payload: { temp_led: "ON", hum_led: "OFF", ... }
@@ -212,6 +236,13 @@ class MqttService {
                         this.io.emit('device_status_update', payload);
                         break;
 
+                    // Yêu cầu đồng bộ trạng thái thiết bị, 
+                    // gửi sau khi ESP32 khởi động lại để 
+                    // đảm bảo trạng thái phần cứng và database được đồng bộ
+                    // Flow: 
+                    // Đánh dấu thiết bị đang hoạt động 
+                    // -> Đồng bộ trạng thái thiết bị từ database 
+                    // -> Cập nhật trạng thái mới nhất cho ESP32
                     case 'device/sync':
                         this.markHardwareActivity();
                         this.requestDeviceStateSync('device-sync');
@@ -229,6 +260,7 @@ class MqttService {
         });
     }
 
+    // Giải mã tiền tố lệnh điều khiển từ tên thiết bị để map với command prefix
     resolveDeviceCommandPrefix(deviceName = '') {
         const name = this.normalizeText(deviceName);
 
@@ -248,6 +280,14 @@ class MqttService {
             {
                 prefix: 'GAS',
                 keywords: ['dev_gas_led', 'dev_dust_led', 'gas', 'khoa gas', 'khoa', 'dust', 'bui']
+            },
+            {
+                prefix: 'LED_A',
+                keywords: ['dev_green_led', 'green_led', 'led xanh', 'den xanh', 'đèn xanh']
+            },
+            {
+                prefix: 'LED_B',
+                keywords: ['dev_red_led', 'red_led', 'led do', 'led đỏ', 'den do', 'đèn đỏ']
             }
         ];
 
@@ -262,6 +302,13 @@ class MqttService {
         return new Promise((resolve) => setTimeout(resolve, ms));
     }
 
+    // Đồng bộ trạng thái thiết bị từ database, 
+    // được gọi khi có hoạt động phần cứng mới 
+    // hoặc yêu cầu đồng bộ từ ESP32
+    // Flow:
+    // Kiểm tra kết nối MQTT và trạng thái đồng bộ hiện tại
+    // -> Truy vấn trạng thái thiết bị từ database
+    // -> Gửi lệnh điều khiển tương ứng đến ESP32 để đồng bộ trạng thái phần cứng
     async syncDeviceStatesFromDatabase(trigger = 'unknown') {
         if (!this.isConnected()) {
             return;
@@ -270,6 +317,7 @@ class MqttService {
         this.isSyncInProgress = true;
 
         try {
+            // Truy vấn tất cả thiết bị và trạng thái hiện tại từ database
             const devices = await query(
                 `
                     SELECT id, name, value
@@ -278,6 +326,8 @@ class MqttService {
                 `
             );
 
+            // Dựa trên tên thiết bị, giải mã tiền tố lệnh điều khiển và giá trị mong muốn 
+            // và gửi lệnh đồng bộ đến ESP32
             for (const device of devices || []) {
                 const commandPrefix = this.resolveDeviceCommandPrefix(device?.name);
                 if (!commandPrefix) {
@@ -287,9 +337,10 @@ class MqttService {
                 const desiredValue = Number(device?.value) === 1 ? 1 : 0;
                 const command = `${commandPrefix}_${desiredValue === 1 ? 'ON' : 'OFF'}`;
 
+                // Gửi lệnh điều khiển đến ESP32 để đồng bộ trạng thái phần cứng với database
                 try {
                     await this.publishControl(command);
-                    await this.sleep(120);
+                    await this.sleep(60);
                 } catch (publishError) {
                     console.error('[MQTT] Device sync publish failed:', {
                         trigger,
@@ -305,6 +356,9 @@ class MqttService {
         } catch (error) {
             console.error(`[MQTT] Device state sync failed (trigger: ${trigger}):`, error.message);
         } finally {
+            // Đánh dấu kết thúc đồng bộ 
+            // và nếu có yêu cầu đồng bộ mới trong quá trình này, 
+            // thực hiện đồng bộ lại để đảm bảo trạng thái luôn được cập nhật
             this.isSyncInProgress = false;
 
             if (this.pendingSyncRequested) {
@@ -314,6 +368,10 @@ class MqttService {
         }
     }
 
+    // Yêu cầu đồng bộ trạng thái thiết bị
+    // Flow: Kiểm tra nếu đang có kết nối MQTT và không có đồng bộ nào đang diễn ra,
+    // - nếu có đồng bộ đang diễn ra thì đánh dấu có yêu cầu đồng bộ mới và sẽ thực hiện ngay sau khi hoàn thành đồng bộ hiện tại,
+    // - nếu không có đồng bộ nào đang diễn ra thì thực hiện đồng bộ ngay lập tức
     requestDeviceStateSync(trigger = 'unknown') {
         if (!this.isConnected()) {
             return;
@@ -340,6 +398,23 @@ class MqttService {
         return normalized === 'ON' || normalized === '1' || normalized === 'TRUE' ? 1 : 0;
     }
 
+    getStateKeyByCommand(command = '') {
+        const normalizedCommand = String(command || '').trim().toUpperCase();
+        const prefix = normalizedCommand.split('_').slice(0, -1).join('_');
+
+        const commandKeyMap = {
+            TEMP: 'temp_led',
+            HUM: 'hum_led',
+            LDR: 'ldr_led',
+            GAS: 'gas_led',
+            LED_A: 'led_a',
+            LED_B: 'led_b'
+        };
+
+        return commandKeyMap[prefix] || null;
+    }
+
+    // Giải mã tên thiết bị để xác định key trạng thái phần cứng tương ứng,
     getStateKeyByDeviceName(deviceName = '') {
         const name = this.normalizeText(deviceName);
 
@@ -359,38 +434,63 @@ class MqttService {
             return 'gas_led';
         }
 
+        if (name.includes('dev_green_led') || name.includes('green_led') || name.includes('led xanh') || name.includes('led_xanh') || name.includes('den xanh') || name.includes('den_xanh') || name.includes('đèn xanh') || name.includes('đèn_xanh')) {
+            return 'led_a';
+        }
+
+
         return null;
     }
 
+    // Cập nhật trạng thái thiết bị dựa trên payload MQTT,
+    // được gọi khi nhận được cập nhật trạng thái thiết bị từ ESP32,
+    // đồng thời giải quyết các waiter đang chờ xác nhận phần cứng nếu có
+    // Flow: Cập nhật trạng thái thiết bị mới nhất từ payload MQTT vào bộ nhớ,
+    // -> kiểm tra nếu có waiter nào đang chờ xác nhận phần cứng với giá trị mới này, 
+    // -> nếu có thì giải quyết waiter đó và loại bỏ khỏi danh sách chờ
+    // waiter là các Promise đang chờ xác nhận phần cứng sau khi gửi lệnh điều khiển
     updateDeviceStatus(payload = {}) {
+        const aliasKeyMap = {
+            green_led: 'led_a',
+            red_led: 'led_b'
+        };
+
         Object.keys(payload).forEach((key) => {
+            // Chuẩn hoá
             const lowerKey = String(key).toLowerCase();
-            if (!lowerKey.endsWith('_led')) {
+            const normalizedKey = aliasKeyMap[lowerKey] || lowerKey;
+            const isSupportedStatusKey = normalizedKey.endsWith('_led') || normalizedKey === 'led_a' || normalizedKey === 'led_b';
+
+            if (!isSupportedStatusKey) {
                 return;
             }
 
+            // Cập nhật trạng thái thiết bị mới nhất từ payload MQTT vào bộ nhớ
             const state = this.normalizeStateValue(payload[key]);
-            this.latestDeviceStatus[lowerKey] = state;
+            this.latestDeviceStatus[normalizedKey] = state;
 
-            const waiters = this.pendingStatusWaiters.get(lowerKey);
+            // Kiểm tra nếu có waiter nào đang chờ xác nhận phần cứng với giá trị mới này,
+            const waiters = this.pendingStatusWaiters.get(normalizedKey);
             if (!waiters || !waiters.length) {
                 return;
             }
 
+            // Nếu có thì giải quyết waiter đó và loại bỏ khỏi danh sách chờ
             const unresolvedWaiters = [];
             waiters.forEach((waiter) => {
                 if (waiter.targetValue === state) {
                     clearTimeout(waiter.timeoutId);
-                    waiter.resolve({ key: lowerKey, value: state });
+                    waiter.resolve({ key: normalizedKey, value: state });
                 } else {
                     unresolvedWaiters.push(waiter);
                 }
             });
 
+            // Cập nhật lại danh sách waiter đang chờ nếu còn waiter nào chưa được giải quyết,  
             if (unresolvedWaiters.length) {
-                this.pendingStatusWaiters.set(lowerKey, unresolvedWaiters);
+                this.pendingStatusWaiters.set(normalizedKey, unresolvedWaiters);
             } else {
-                this.pendingStatusWaiters.delete(lowerKey);
+                this.pendingStatusWaiters.delete(normalizedKey);
             }
         });
     }
@@ -399,12 +499,19 @@ class MqttService {
         return Boolean(this.mqttClient?.connected);
     }
 
+    // Tạo lỗi có mã lỗi để phân biệt các loại lỗi khác nhau trong quá trình gửi lệnh và chờ xác nhận phần cứng
     createOperationError(code, message) {
         const error = new Error(message);
         error.code = code;
         return error;
     }
 
+    // Tạo Promise kết nối MQTT trong một khoảng thời gian nhất định, 
+    // được sử dụng để đảm bảo có kết nối MQTT trước khi gửi lệnh điều khiển 
+    // hoặc đồng bộ trạng thái thiết bị
+    // Flow: Nếu đã có kết nối MQTT thì resolve ngay,
+    // -> nếu chưa có kết nối MQTT thì đăng ký sự kiện 'connect' để resolve khi kết nối được thiết lập, 
+    // -> đồng thời thiết lập interval để thử reconnect định kỳ và timeout để ngừng chờ sau khoảng thời gian nhất định
     waitForConnected(timeoutMs = 10000) {
         if (this.isConnected()) {
             return Promise.resolve(true);
@@ -415,12 +522,14 @@ class MqttService {
             let timeoutId = null;
             let reconnectIntervalId = null;
 
+            // Cleanup function để loại bỏ sự kiện và interval khi đã có kết quả hoặc hết thời gian chờ
             const cleanup = () => {
                 clearTimeout(timeoutId);
                 clearInterval(reconnectIntervalId);
                 this.mqttClient.off('connect', onConnect);
             };
 
+            // Hàm để hoàn tất chờ đợi với kết quả có kết nối hay không, đảm bảo chỉ resolve/reject một lần duy nhất
             const finish = (isConnectedNow) => {
                 if (settled) {
                     return;
@@ -431,12 +540,11 @@ class MqttService {
                 resolve(Boolean(isConnectedNow));
             };
 
-            const onConnect = () => {
-                finish(true);
-            };
+            this.mqttClient.on('connect', () => {finish(true);});
 
-            this.mqttClient.on('connect', onConnect);
-
+            // Thiết lập interval để thử reconnect định kỳ nếu chưa có kết nối,
+            // và thiết lập timeout để ngừng chờ sau khoảng thời gian nhất định
+            // Interval: Mỗi 2 giây thử reconnect nếu chưa có kết nối,
             reconnectIntervalId = setInterval(() => {
                 if (this.isConnected()) {
                     finish(true);
@@ -450,6 +558,7 @@ class MqttService {
                 }
             }, 2000);
 
+            // Timeout: Nếu sau khoảng thời gian nhất định vẫn chưa có kết nối thì dừng chờ và resolve false
             timeoutId = setTimeout(() => {
                 finish(this.isConnected());
             }, timeoutMs);
@@ -462,6 +571,10 @@ class MqttService {
         });
     }
 
+    // Gửi lệnh điều khiển đến ESP32 thông qua MQTT, được sử dụng để bật/tắt thiết bị từ backend
+    // Flow: Kiểm tra nếu chưa có kết nối MQTT thì reject ngay,
+    // -> nếu có kết nối MQTT thì publish lệnh điều khiển lên topic 'device/control' và resolve/reject dựa trên kết quả publish
+    //  Lệnh điều khiển được publish sẽ có dạng: 'TEMP_ON', 'HUM_OFF',...
     publishControl(command) {
         return new Promise((resolve, reject) => {
             if (!this.isConnected()) {
@@ -481,14 +594,20 @@ class MqttService {
         });
     }
 
-    waitForDeviceState(deviceName, targetValue, timeoutMs = 5000) {
+    // Tạo một Promise để chờ xác nhận phần cứng sau khi gửi lệnh điều khiển,
+    // Flow: Kiểm tra nếu chưa có kết nối MQTT thì reject ngay,
+    // -> nếu có kết nối MQTT thì đăng ký một waiter để chờ xác nhận phần cứng với giá trị mong muốn, 
+    // -> đồng thời thiết lập timeout để reject nếu hết thời gian chờ mà không nhận được xác nhận từ phần cứng
+    waitForDeviceState(deviceName, targetValue, timeoutMs = 5000, command = '') {
         return new Promise((resolve, reject) => {
-            const stateKey = this.getStateKeyByDeviceName(deviceName);
+            // Map tên thiết bị
+            const stateKey = this.getStateKeyByDeviceName(deviceName) || this.getStateKeyByCommand(command);
             if (!stateKey) {
                 reject(new Error('Cannot map device name to hardware status key'));
                 return;
             }
 
+            // Chuẩn hoá giá trị ON/OFF
             const normalizedTarget = this.normalizeStateValue(targetValue);
             if (this.latestDeviceStatus[stateKey] === normalizedTarget) {
                 resolve({ key: stateKey, value: normalizedTarget, immediate: true });
@@ -497,6 +616,7 @@ class MqttService {
 
             let settled = false;
 
+            // Cleanup function để loại bỏ waiter khỏi danh sách chờ khi đã có kết quả hoặc hết thời gian chờ
             const cleanupWaiter = (timeoutId) => {
                 if (!timeoutId) {
                     return;
@@ -513,6 +633,7 @@ class MqttService {
 
             let timeoutId = null;
 
+            // Đăng ký sự kiện ngắt kết nối để reject nếu MQTT bị ngắt trong quá trình chờ xác nhận phần cứng,
             const onDisconnect = () => {
                 if (settled) {
                     return;
@@ -527,6 +648,7 @@ class MqttService {
 
             this.mqttClient.on('disconnect', onDisconnect);
 
+            // Thiết lập timeout để reject nếu hết thời gian chờ mà không nhận được xác nhận từ phần cứng
             timeoutId = setTimeout(() => {
                 if (settled) {
                     return;
@@ -538,6 +660,7 @@ class MqttService {
                 reject(this.createOperationError('HARDWARE_CONFIRM_TIMEOUT', 'Timeout waiting for hardware confirmation'));
             }, timeoutMs);
 
+            // Đăng ký một waiter để chờ xác nhận phần cứng với giá trị mong muốn,
             const waiter = {
                 targetValue: normalizedTarget,
                 timeoutId,
@@ -560,16 +683,28 @@ class MqttService {
         });
     }
 
+    // Gửi lệnh điều khiển và chờ xác nhận phần cứng
+    // Flow: Kiểm tra nếu chưa có kết nối MQTT thì reject ngay,
+    // -> nếu có kết nối MQTT thì gửi lệnh điều khiển đến ESP32, 
+    // -> sau đó chờ đợi trạng thái của thiết bị được cập nhật từ MQTT để xác nhận phần cứng đã thực hiện lệnh điều khiển, 
+    // -> reject nếu trong quá trình chờ có sự cố về kết nối MQTT hoặc hết thời gian chờ mà không nhận được xác nhận từ phần cứng
     async sendCommandAndWait(deviceName, command, targetValue, timeoutMs = 5000) {
         if (!this.isConnected()) {
             throw this.createOperationError('MQTT_NOT_CONNECTED', 'MQTT is not connected');
         }
 
-        const waitPromise = this.waitForDeviceState(deviceName, targetValue, timeoutMs);
+        const waitPromise = this.waitForDeviceState(deviceName, targetValue, timeoutMs, command);
         await this.publishControl(command);
         return waitPromise;
     }
 
+    // Gửi lệnh điều khiển và chờ xác nhận phần cứng với logic 
+    // tự động thử reconnect nếu bị ngắt kết nối MQTT trong quá trình chờ xác nhận
+    // Flow: Kiểm tra nếu chưa có kết nối MQTT thì reject ngay,
+    // -> nếu có kết nối MQTT thì gửi lệnh điều khiển đến ESP32, 
+    // -> sau đó chờ đợi trạng thái của thiết bị được cập nhật từ MQTT để xác nhận phần cứng đã thực hiện lệnh điều khiển, 
+    // -> nếu trong quá trình chờ có sự cố về kết nối MQTT thì tự động thử reconnect và nếu reconnect thành công thì tiếp tục chờ xác nhận phần cứng, 
+    // -> reject nếu hết thời gian chờ mà không nhận được xác nhận từ phần cứng hoặc không thể reconnect MQTT trong khoảng thời gian nhất định
     async sendCommandAndWaitWithReconnect(deviceName, command, targetValue, options = {}) {
         const confirmationTimeoutMs = Number(options.confirmationTimeoutMs || 6000);
         const reconnectTimeoutMs = Number(options.reconnectTimeoutMs || 10000);

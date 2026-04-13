@@ -2,6 +2,13 @@ const { randomUUID } = require('crypto');
 const { query } = require('../config/db');
 const { resolveDeviceCommandPrefix } = require('../utils/deviceResolver');
 
+
+// Flow: Người dùng gửi yêu cầu bật/tắt thiết bị 
+// -> Cập nhật trạng thái thiết bị thành "waiting" 
+// -> Ghi nhận lịch sử hành động với trạng thái "waiting" 
+// -> Gửi lệnh qua MQTT 
+// -> Nếu có phản hồi xác nhận từ hardware, cập nhật trạng thái thiết bị và lịch sử hành động thành "success", 
+// ngược lại cập nhật thành "failed"
 const toggleDevice = async (req, res) => {
     try {
         const { id } = req.params;
@@ -31,7 +38,14 @@ const toggleDevice = async (req, res) => {
         const command = `${commandPrefix}_${nextValue === 1 ? 'ON' : 'OFF'}`;
 
         const actionHistoryId = randomUUID();
-
+        await query(
+            `
+                INSERT INTO action_history (id, device_id, command, executor, status, created_at)
+                VALUES (?, ?, ?, ?, ?, NOW())
+            `,
+            [actionHistoryId, id, command, 'user', 'waiting']
+        );
+        
         await query(
             `
                 UPDATE devices
@@ -41,13 +55,6 @@ const toggleDevice = async (req, res) => {
             ['waiting', id]
         );
 
-        await query(
-            `
-                INSERT INTO action_history (id, device_id, command, executor, status, created_at)
-                VALUES (?, ?, ?, ?, ?, NOW())
-            `,
-            [actionHistoryId, id, command, 'user', 'waiting']
-        );
 
         if (!mqttService) {
             await query(

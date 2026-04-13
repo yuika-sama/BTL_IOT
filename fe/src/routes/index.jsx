@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import ActionHistory from "../pages/ActionHistory";
 import Dashboard from "../pages/Dashboard";
 import DataSensor from "../pages/DataSensor";
+import DeviceActionStats from "../pages/DeviceActionStats";
 import Profile from "../pages/Profile";
 import NotFound from "../pages/NotFound";
 
@@ -13,6 +14,7 @@ export default function AppRoutes() {
         <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/data-sensor" element={<DataSensor />} />
+            <Route path="/device-action-stats" element={<DeviceActionStats />} />
             <Route path="/profile" element={<Profile />} />   
             <Route path="/action-history" element={<ActionHistory />} />
             

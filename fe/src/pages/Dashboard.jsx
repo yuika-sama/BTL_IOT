@@ -7,7 +7,13 @@ import { useSocket } from '../hooks/useSocket.jsx';
 import { deviceService, dataSensorService } from '../services';
 import { formatName, formatNumber } from '../utils/formatter.js';
 import { SENSOR_THEME, toRgba, normalizeSensorLevel, createBackgroundTheme } from '../utils/themeUtils.js';
-import { getDeviceDisplayName, getDeviceSensorKey, getDeviceState } from '../utils/mappings.js';
+import {
+    getDeviceDisplayName,
+    getDeviceSensorKey,
+    getDeviceState,
+    getDeviceStatusPayloadKey,
+    normalizeHardwareStatusValue
+} from '../utils/mappings.js';
 
 export default function Dashboard() {
     // State cho sensor data realtime
@@ -102,6 +108,7 @@ export default function Dashboard() {
     }, []);
 
 
+    // Hàm trigger hiệu ứng khi có sự thay đổi đáng kể của sensor value
     const triggerSensorPulse = (sensorKey) => {
         setSensorPulse((prev) => ({
             ...prev,
@@ -120,6 +127,7 @@ export default function Dashboard() {
         }, 750);
     };
 
+    // Cập nhật giá trị sensor và trigger pulse nếu có sự thay đổi đáng kể
     const updateSensorValueAndPulse = (sensorKey, nextValue) => {
         const normalizedValue = Number(nextValue);
         if (Number.isNaN(normalizedValue)) {
@@ -137,6 +145,7 @@ export default function Dashboard() {
         }));
     };
 
+    // Hàm append data point mới vào chart, giữ lại tối đa 20 điểm gần nhất
     const appendChartDataPoint = (setSeries, timestamp, value) => {
         setSeries((prev) => {
             const newData = [...prev, {
@@ -219,24 +228,43 @@ export default function Dashboard() {
     useEffect(() => {
         const unsubscribe = onDeviceStatus((statusUpdate) => {
             console.log('📡 Device status update:', statusUpdate);
-            
-            // Update device trong danh sách
-            setDevices(prev => prev.map(device => {
-                if (device.id === statusUpdate.device_id) {
-                    const updated = { 
-                        ...device, 
-                        value: statusUpdate.value !== undefined ? statusUpdate.value : device.value,
-                        status: statusUpdate.status !== undefined ? statusUpdate.status : device.status,
-                        is_connected: statusUpdate.is_connected !== undefined ? statusUpdate.is_connected : device.is_connected
-                    };
-                    console.log('🔄 Device updated:', {
-                        id: device.id,
-                        old: { value: device.value, status: device.status, is_connected: device.is_connected },
-                        new: { value: updated.value, status: updated.status, is_connected: updated.is_connected }
-                    });
-                    return updated;
+
+            // Case 1: payload theo từng device (có device_id)
+            if (statusUpdate?.device_id) {
+                setDevices((prev) => prev.map((device) => {
+                    if (device.id === statusUpdate.device_id) {
+                        const updated = {
+                            ...device,
+                            value: statusUpdate.value !== undefined ? statusUpdate.value : device.value,
+                            status: statusUpdate.status !== undefined ? statusUpdate.status : device.status,
+                            is_connected: statusUpdate.is_connected !== undefined ? statusUpdate.is_connected : device.is_connected
+                        };
+
+                        console.log('🔄 Device updated by id:', {
+                            id: device.id,
+                            old: { value: device.value, status: device.status, is_connected: device.is_connected },
+                            new: { value: updated.value, status: updated.status, is_connected: updated.is_connected }
+                        });
+                        return updated;
+                    }
+                    return device;
+                }));
+                return;
+            }
+
+            // Case 2: payload theo key phần cứng (temp_led, hum_led, ldr_led, gas_led, led_a, led_b)
+            setDevices((prev) => prev.map((device) => {
+                const statusKey = getDeviceStatusPayloadKey(device.name);
+                if (!statusKey || statusUpdate?.[statusKey] === undefined) {
+                    return device;
                 }
-                return device;
+
+                return {
+                    ...device,
+                    value: normalizeHardwareStatusValue(statusUpdate[statusKey]),
+                    status: 'success',
+                    is_connected: true
+                };
             }));
         });
 
@@ -376,16 +404,10 @@ export default function Dashboard() {
     return (
         <MainLayout backgroundTheme={backgroundTheme}>
             <div className="relative overflow-hidden rounded-[2rem] p-2">
-                {/* <div className="pointer-events-none absolute inset-0">
-                    <div className="absolute -top-24 -left-20 w-80 h-80 rounded-full transition-all duration-700" style={temperatureAmbientStyle}></div>
-                    <div className="absolute -top-16 right-8 w-72 h-72 rounded-full transition-all duration-700" style={humidityAmbientStyle}></div>
-                    <div className="absolute top-1/3 -right-12 w-96 h-96 rounded-full transition-all duration-700" style={lightAmbientStyle}></div>
-                    <div className="absolute -bottom-24 left-1/4 w-80 h-80 rounded-full transition-all duration-700" style={gasAmbientStyle}></div>
-                </div> */}
 
                 <div className="relative z-10">
                     {/* Socket Connection Status */}
-                    <div className="mb-6 flex items-center gap-3 bg-white px-5 py-1 rounded-2xl shadow-md border border-gray-100 w-fit">
+                    <div className="mb-4 flex items-center gap-3 bg-white px-5 py-1 rounded-2xl shadow-md border border-gray-100 w-fit">
                         <div className={`w-3 h-3 rounded-full transition-all duration-300 ${
                             canControlDevices ? 'bg-green-500 shadow-lg shadow-green-200 animate-pulse' : 'bg-red-500 shadow-lg shadow-red-200'
                         }`}></div>

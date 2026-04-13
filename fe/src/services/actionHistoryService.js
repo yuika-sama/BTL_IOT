@@ -38,6 +38,12 @@ const actionHistoryService = {
       },
     };
   },
+
+  getStats: async (date) => {
+    const params = date ? { date } : {};
+    const response = await baseApi.get('/action-history/stats', { params });
+    return response;
+  }
 };
 
 export default actionHistoryService;

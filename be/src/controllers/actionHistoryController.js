@@ -68,7 +68,7 @@ const buildActionFilterCondition = (actionFilter = 'all') => {
  */
 const buildStatusFilterCondition = (statusFilter = 'all') => {
     const key = String(statusFilter || 'all').trim().toLowerCase();
-    const allowed = new Set(['success', 'error', 'pending', 'waiting']);
+    const allowed = new Set(['success', 'failed', 'pending', 'waiting']);
 
     if (!allowed.has(key)) {
         return null;
@@ -266,6 +266,46 @@ const getAllActionHistory = async (req, res) => {
     }
 };
 
-module.exports = {
-    getAllActionHistory
+const getDeviceActionStats = async (req, res) => {
+    try {
+        const date = req.query.date || new Date().toISOString().split('T')[0];
+
+        const statsSql = `
+            SELECT 
+                d.name AS device_name,
+                SUM(CASE 
+                    WHEN (UPPER(ah.command) LIKE '%_ON' OR UPPER(ah.command) IN ('ON', 'TURN_ON')) 
+                    THEN 1 ELSE 0 
+                END) AS on_count,
+                SUM(CASE 
+                    WHEN (UPPER(ah.command) LIKE '%_OFF' OR UPPER(ah.command) IN ('OFF', 'TURN_OFF')) 
+                    THEN 1 ELSE 0 
+                END) AS off_count
+            FROM action_history ah
+            JOIN devices d ON ah.device_id = d.id
+            WHERE DATE(ah.created_at) = ?
+              AND ah.status = 'success'
+            GROUP BY d.name
+        `;
+
+        const rows = await query(statsSql, [date]);
+
+        return res.status(200).json({
+            success: true,
+            date,
+            data: rows
+        });
+    } catch (error) {
+        console.error('Error while fetching action stats:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Không thể tải thống kê thao tác',
+            error: error.message
+        });
+    }
 };
+
+module.exports = {
+    getAllActionHistory,
+    getDeviceActionStats
+};

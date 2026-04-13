@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutGrid, FileEdit, Rss, User } from 'lucide-react';
+import { LayoutGrid, FileEdit, Rss, User, BarChart3 } from 'lucide-react';
 import {useNavigate, useLocation} from 'react-router-dom';
 
 export default function NavBar() {
@@ -9,6 +9,7 @@ export default function NavBar() {
     const defineButton = [
         { icon: <LayoutGrid size={24} strokeWidth={1.5} />, alt: 'Dashboard', route: '/' },
         { icon: <FileEdit size={24} strokeWidth={1.5} />, alt: 'Action History', route: '/action-history' },
+        { icon: <BarChart3 size={24} strokeWidth={1.5} />, alt: 'Device Stats', route: '/device-action-stats' },
         { icon: <Rss size={24} strokeWidth={1.5} />, alt: 'Data Sensor', route: '/data-sensor' },
         { icon: <User size={24} strokeWidth={1.5} />, alt: 'Profile', route: '/profile' },
     ]

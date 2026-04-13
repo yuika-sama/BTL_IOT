@@ -59,7 +59,7 @@ class SocketService {
     if (type.includes('temp') || type.includes('temperature')) return 'temperature';
     if (type.includes('hum') || type.includes('humidity')) return 'humidity';
     if (type.includes('light') || type.includes('ldr')) return 'light';
-    if (type.includes('dust') || type.includes('gas')) return 'gas';
+    if (type.includes('gas')) return 'gas';
 
     return null;
   }

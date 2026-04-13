@@ -11,6 +11,8 @@ import {
     ACTION_HISTORY_EXECUTOR_OPTIONS
 } from '../utils/mappings.js';
 
+import DeviceActionStatsChart from '../components/DeviceActionStatsChart.jsx';
+
 export default function ActionHistory(){
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
